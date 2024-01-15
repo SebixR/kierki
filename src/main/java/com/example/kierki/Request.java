@@ -4,5 +4,6 @@ public enum Request {
     CREATE_ROOM,
     INVITE_PLAYER,
     JOIN_ROOM,
-    START_GAME
+    DEAL_CARDS,
+    PLAY_CARD
 }

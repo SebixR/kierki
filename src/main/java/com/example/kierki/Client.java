@@ -80,13 +80,25 @@ public class Client {
 
     public void startGame() throws IOException {
         out.reset();
-        out.writeObject(Request.START_GAME);
+        out.writeObject(Request.DEAL_CARDS);
         out.writeObject(currentRoomId);
 
         gameController.setLabels(rooms.get(currentRoomId).getConnectedPlayers());
 
         Scene gameScene = new Scene(gameLoader.getRoot());
         primaryStage.setScene(gameScene);
+    }
+
+    public void playCard(int cardIndex) throws IOException {
+        if (rooms.get(currentRoomId).getCurrentTurn() == this.clientId)
+        {
+            out.reset();
+            out.writeObject(Request.PLAY_CARD);
+            out.writeObject(cardsInHand.get(cardIndex));
+            out.writeObject(currentRoomId);
+            out.flush();
+            System.out.println("Sent request to play card: " + cardsInHand.get(cardIndex).getValue() + " " + cardsInHand.get(cardIndex).getSuit());
+        }
     }
 
     public void requestPlayerInvite(int playerId) throws IOException {
@@ -212,6 +224,17 @@ public class Client {
                         for (Card card : cardsInHand) {
                             System.out.println(card.getValue() + " " + card.getSuit());
                         }
+
+                        Platform.runLater(() -> gameController.generatePlayerCards());
+                    }
+                    else if (response == Response.PLAYED_CARD) {
+                        Card playedCard = (Card) in.readObject();
+                        System.out.println("Client succesfully played card: " + playedCard.getValue() + " " + playedCard.getSuit());
+
+                        int cardIndex = cardsInHand.indexOf(playedCard);
+                        cardsInHand.set(cardIndex, playedCard);
+
+                        Platform.runLater(() -> gameController.playCard(cardsInHand.get(cardIndex)));
                     }
 
                 } catch (Exception e) {
@@ -238,6 +261,10 @@ public class Client {
             e.printStackTrace();
         }
 
+    }
+
+    public List<Card> getCardsInHand() {
+        return this.cardsInHand;
     }
 
     public Integer getClientId() {

@@ -5,5 +5,6 @@ public enum Response {
     INVITATION,
     JOINED_ROOM,
     ROOM_CREATED,
-    DEALT_CARDS
+    DEALT_CARDS,
+    PLAYED_CARD
 }

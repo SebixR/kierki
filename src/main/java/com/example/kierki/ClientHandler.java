@@ -2,11 +2,7 @@ package com.example.kierki;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 
 public class ClientHandler implements Runnable {
@@ -19,6 +15,7 @@ public class ClientHandler implements Runnable {
     private int clientId; //given by the server
     private boolean isInGame = false;
     private static final int CARDS_IN_DECK = 52;
+    private static final int CARDS_IN_HAND = 13;
 
     public ClientHandler(Socket socket, int clientId){
 
@@ -99,7 +96,7 @@ public class ClientHandler implements Runnable {
                         out.flush();
                     }
                 }
-                else if (request == Request.START_GAME) {
+                else if (request == Request.DEAL_CARDS) {
                     int roomId = (int) in.readObject();
 
                     dealCards(roomId);
@@ -114,6 +111,21 @@ public class ClientHandler implements Runnable {
                         }
                     }
                     out.flush();
+                }
+                else if (request == Request.PLAY_CARD) {
+                    Card card = (Card) in.readObject();
+                    System.out.println("Client: " + this.clientId + " requested to play card: " + card.getValue() + " " + card.getSuit());
+                    int roomId = (int) in.readObject();
+
+                    if (validateMove(card)) {
+                        int cardIndex = playCard(roomId, card);
+
+                        out.reset();
+                        out.writeObject(Response.PLAYED_CARD);
+                        out.writeObject(rooms.get(roomId).getCards().get(cardIndex));
+                        out.flush();
+                        //TODO broadcast the played card to everyone
+                    }
                 }
 
             } catch (Exception e) {
@@ -152,8 +164,7 @@ public class ClientHandler implements Runnable {
     public synchronized void updateRoom(int roomId, int clientId) {
         if (!rooms.get(roomId).isFull())
         {
-            rooms.get(roomId).addPlayer(clientId);
-            if (rooms.get(roomId).getPlayerAmount() >= 4) rooms.get(roomId).setFull();
+            rooms.get(roomId).addPlayer(clientId); //already sets the isFull field accordingly
         }
     }
 
@@ -182,23 +193,46 @@ public class ClientHandler implements Runnable {
      * @param roomId the player's room
      */
     public synchronized void dealCards(int roomId) {
-        Random random = new Random();
-
         System.out.println("Dealt cards : ");
 
-        for (int i = 0; i < CARDS_IN_DECK / 4; i++)
+        Collections.shuffle(rooms.get(roomId).getCards());
+
+        int counter = 0;
+        for (int i = 0; i < CARDS_IN_DECK && counter < CARDS_IN_HAND; i++)
         {
-            int cardNumber = random.nextInt(CARDS_IN_DECK); //from 0 to 51
-            if (rooms.get(roomId).getCards().get(cardNumber).getClientId() != 0) {
-                while (rooms.get(roomId).getCards().get(cardNumber).getClientId() != 0) {
-                    cardNumber = random.nextInt(CARDS_IN_DECK);
-                }
+            if (rooms.get(roomId).getCards().get(i).getClientId() == 0) {
+                rooms.get(roomId).getCards().get(i).setClientId(this.clientId);
+                System.out.println("Card: " + rooms.get(roomId).getCards().get(i).getValue() + " suit: " + rooms.get(roomId).getCards().get(i).getSuit());
+                counter++;
             }
-            rooms.get(roomId).getCards().get(cardNumber).setClientId(this.clientId);
-            System.out.println("Card: " + rooms.get(roomId).getCards().get(cardNumber).getValue() + " suit: " + rooms.get(roomId).getCards().get(cardNumber).getSuit());
         }
 
         System.out.println("to player: " + this.clientId);
+    }
+
+    /**
+     * Sets the card as played, and updates whose turn it is to play
+     * @param roomId room in which the card was played
+     * @param playedCard card played
+     * @return the index of the played card, so that the updated card can be sent to the client
+     */
+    public synchronized int playCard(int roomId, Card playedCard) {
+
+        int cardIndex = 0;
+        for (int i = 0; i < CARDS_IN_DECK; i++){
+            if (rooms.get(roomId).getCards().get(i).getSuit() == playedCard.getSuit()
+                    && rooms.get(roomId).getCards().get(i).getValue() == playedCard.getValue()){
+                cardIndex = i;
+                break;
+            }
+        }
+        rooms.get(roomId).getCards().get(cardIndex).setInHand(false);
+        rooms.get(roomId).changeTurn();
+        return cardIndex;
+    }
+
+    public boolean validateMove(Card card) {
+        return true;
     }
 
     public void removeClientHandler(){

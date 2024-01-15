@@ -4,19 +4,19 @@ import java.io.Serializable;
 
 public class Card implements Serializable {
 
-    private Suit suit;
-    private int value; //from 2 to 10, and then 11, 12, 13, and 14 for the special ones
+    private final Suit suit;
+    private final int value; //from 2 to 10, and then 11, 12, 13, and 14 for the special ones
     private int clientId = 0; //the client the card belongs to
-    private boolean inGame; //true by default, changes to false when the card is played
+    private boolean inHand; //true by default, changes to false when the card is played
 
     public Card (Suit suit, int value) {
         this.suit = suit;
         this.value = value;
-        this.inGame = true;
+        this.inHand = true;
     }
 
     public void resetCard() {
-        this.inGame = true;
+        this.inHand = true;
         this.clientId = 0;
     }
 
@@ -32,11 +32,15 @@ public class Card implements Serializable {
         return clientId;
     }
 
-    public boolean isInGame() {
-        return inGame;
+    public boolean isInHand() {
+        return inHand;
     }
 
     public void setClientId(int clientId) {
         this.clientId = clientId;
+    }
+
+    public void setInHand(boolean inHand) {
+        this.inHand = inHand;
     }
 }
