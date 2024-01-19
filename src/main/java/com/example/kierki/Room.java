@@ -13,13 +13,17 @@ public class Room implements Serializable {
     private HashMap<Integer, Integer> playerPoints = new HashMap<>(); //key - clientId, value - points
     private boolean isFull;
     private List<Card> cards;
+    private HashMap<Integer, Card> cardsOnTable = new HashMap<>();
+    private Card firstCardOnTable;
     private int currentTurn;
+    private int currentRound;
 
     public Room(int hostId, int roomId){
         this.hostId = hostId;
         this.roomId = roomId;
         this.isFull = false;
         this.currentTurn = hostId; //the host starts the game (technically the person on the LEFT of the host should start)
+        this.currentRound = 1;
         connectedPlayers.add(hostId);
 
         initializeDeck();
@@ -77,6 +81,14 @@ public class Room implements Serializable {
         else currentTurn = connectedPlayers.get(index + 1);
     }
 
+    /**
+     * Setter for currentTurn, used at the end of the turn
+     * @param clientId the client who took the cards, and thus will start the next turn
+     */
+    public void setCurrentTurn(int clientId) {
+        this.currentTurn = clientId;
+    }
+
     public boolean isFull(){
         return isFull;
     }
@@ -101,11 +113,31 @@ public class Room implements Serializable {
         return this.cards;
     }
 
+    public HashMap<Integer, Card> getCardsOnTable() {
+        return this.cardsOnTable;
+    }
+    public int getCurrentRound() {
+        return this.currentRound;
+    }
+
     public int getCurrentTurn() {
         return this.currentTurn;
+    }
+    public Card getFirstCardOnTable() {
+        return this.firstCardOnTable;
+    }
+
+    public HashMap<Integer, Integer> getPlayerPoints() {
+        return playerPoints;
     }
 
     public void setFull(){
         isFull = true;
+    }
+    public void setFirstCardOnTable(Card card) {
+        this.firstCardOnTable = card;
+    }
+    public void incrementRound() {
+        this.currentRound++;
     }
 }

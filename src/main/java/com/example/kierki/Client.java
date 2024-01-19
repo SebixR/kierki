@@ -20,6 +20,7 @@ public class Client {
     private int clientId;
     private int currentRoomId = 0;
     private List<Card> cardsInHand = new ArrayList<>();
+    private int points;
     private HashMap<Integer, Room> rooms;
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
@@ -245,6 +246,17 @@ public class Client {
                         System.out.println("Player: " + playedCard.getClientId() + " played: " + playedCard.getValue() + " " + playedCard.getSuit());
 
                         Platform.runLater(() -> gameController.placeOtherPlayersCard(playedCard,  playedCard.getClientId()));
+                    }
+                    else if (response == Response.TURN_OVER) {
+                        int takerClientId = (int) in.readObject();
+                        int receivedPoints = (int) in.readObject();
+                        Room room = (Room) in.readObject();
+                        rooms.put(room.getRoomId(), room);
+                        System.out.println("Player: " + takerClientId + " received: " + receivedPoints + " points");
+
+                        if (takerClientId == this.clientId) this.points += receivedPoints;
+
+                        //TODO clear all cards on table and add a scoreboard
                     }
 
                 } catch (Exception e) {

@@ -117,7 +117,7 @@ public class ClientHandler implements Runnable {
                     System.out.println("Client: " + this.clientId + " requested to play card: " + card.getValue() + " " + card.getSuit());
                     int roomId = (int) in.readObject();
 
-                    if (validateMove(card)) {
+                    if (validateMove(card, roomId)) {
                         int cardIndex = playCard(roomId, card);
 
                         out.reset();
@@ -127,6 +127,24 @@ public class ClientHandler implements Runnable {
                         out.flush();
 
                         broadcastPlay(rooms.get(roomId), card);
+
+                        if (rooms.get(roomId).getCardsOnTable().size() == 4) {
+                            out.reset();
+
+                            int oldestCardValue = 2;
+                            int takerClientId = rooms.get(roomId).getCardsOnTable().get(this.clientId).getClientId();
+                            for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
+                                if (entry.getValue().getValue() > oldestCardValue && entry.getValue().getSuit() == rooms.get(roomId).getFirstCardOnTable().getSuit()) {
+                                    oldestCardValue = entry.getValue().getValue();
+                                    takerClientId = entry.getValue().getClientId();
+                                }
+                            }
+
+                            endTurn(roomId, takerClientId, 20);
+
+                            broadcastPoints(20, takerClientId, rooms.get(roomId));
+                            out.flush();
+                        }
                     }
                 }
 
@@ -174,6 +192,21 @@ public class ClientHandler implements Runnable {
                     handler.out.writeObject(room);
                     out.flush();
                 }
+            } catch (IOException e){
+                closeEverything(socket, in, out);
+            }
+        }
+    }
+
+    public synchronized void broadcastPoints(int points, int clientId, Room room) {
+        for (ClientHandler handler : clientHandlers){
+            try {
+                handler.out.reset();
+                handler.out.writeObject(Response.TURN_OVER);
+                handler.out.writeObject(clientId);
+                handler.out.writeObject(points);
+                handler.out.writeObject(room);
+                handler.out.flush();
             } catch (IOException e){
                 closeEverything(socket, in, out);
             }
@@ -252,11 +285,44 @@ public class ClientHandler implements Runnable {
         }
         rooms.get(roomId).getCards().get(cardIndex).setInHand(false);
         rooms.get(roomId).changeTurn();
+        if (rooms.get(roomId).getCardsOnTable().size() == 0) rooms.get(roomId).setFirstCardOnTable(rooms.get(roomId).getCards().get(cardIndex));
+        rooms.get(roomId).getCardsOnTable().put(this.clientId, rooms.get(roomId).getCards().get(cardIndex)); //not playedCard, because we want to keep the updated inHand field
         return cardIndex;
     }
 
-    public boolean validateMove(Card card) {
-        return true;
+    public boolean validateMove(Card card, int roomId) {
+
+        if (rooms.get(roomId).getCurrentRound() == 1) {
+            return handleRound1(card, roomId);
+        }
+
+        return false;
+    }
+
+    public boolean handleRound1(Card card, int roomId) {
+        if (rooms.get(roomId).getCardsOnTable().size() == 0) {
+            return true;
+        }
+        else {
+            Suit currentSuit = rooms.get(roomId).getFirstCardOnTable().getSuit();
+            if (card.getSuit() == currentSuit) return true;
+
+            boolean hasMatchingColor = false;
+            for (int i = 0; i < CARDS_IN_DECK; i++) {
+                if (rooms.get(roomId).getCards().get(i).getClientId() == this.clientId
+                        && rooms.get(roomId).getCards().get(i).getSuit() == currentSuit){
+                    hasMatchingColor = true;
+                }
+            }
+            return !hasMatchingColor;
+        }
+    }
+
+    public synchronized void endTurn(int roomId, int clientId, int points) {
+        rooms.get(roomId).getCardsOnTable().clear();
+        rooms.get(roomId).setFirstCardOnTable(null);
+        rooms.get(roomId).setCurrentTurn(clientId);
+        rooms.get(roomId).getPlayerPoints().put(clientId, points);
     }
 
     public void removeClientHandler(){
