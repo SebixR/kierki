@@ -8,6 +8,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -15,8 +16,9 @@ import java.util.Objects;
 public class GameController {
 
     private Client client;
-    private HashMap<Card, ImageView> cardsOnScreen = new HashMap<>();
+    private HashMap<Integer, ImageView> cardsOnScreen = new HashMap<>();
     private int round;
+    private List<Integer> otherPlayerIds = new ArrayList<>();
     @FXML
     private Label currentPlayerLabel;
     @FXML
@@ -26,26 +28,32 @@ public class GameController {
     @FXML
     private Label otherPlayerLabel3;
     @FXML
-    private Pane playerPlayedCardPane;
+    private ImageView playerPlayedCardView;
     @FXML
-    private Pane otherPlayedCardPane1;
+    private ImageView otherPlayedCardView1;
     @FXML
-    private Pane otherPlayedCardPane2;
+    private ImageView otherPlayedCardView2;
     @FXML
-    private Pane otherPlayedCardPane3;
+    private ImageView otherPlayedCardView3;
     @FXML
     private HBox playerCardsBox;
+    private int cardsOffset = -25;
 
     public void setLabels(List<Integer> players) {
+        currentPlayerLabel.setText(String.valueOf(client.getClientId()));
+        int playerIndex = players.indexOf(client.getClientId());
+
         int counter = 0;
-        for (Integer player : players) {
-            if (Objects.equals(player, client.getClientId())) currentPlayerLabel.setText(String.valueOf(player));
-            else
-            {
+        for (int i = playerIndex; counter < 3; i++) {
+            if (i == 4) i = 0;
+
+            if (!Objects.equals(players.get(i), client.getClientId())) {
+                otherPlayerIds.add(players.get(i));
+
+                if (counter == 0) otherPlayerLabel1.setText(String.valueOf(players.get(i)));
+                else if (counter == 1) otherPlayerLabel2.setText(String.valueOf(players.get(i)));
+                else if (counter == 2) otherPlayerLabel3.setText(String.valueOf(players.get(i)));
                 counter++;
-                if (counter == 1) otherPlayerLabel1.setText(String.valueOf(player));
-                else if (counter == 2) otherPlayerLabel2.setText(String.valueOf(player));
-                else if (counter == 3) otherPlayerLabel3.setText(String.valueOf(player));
             }
         }
     }
@@ -60,26 +68,11 @@ public class GameController {
         int i = 0;
         for (Card card : clientCards)
         {
-            String path = "cards/";
-            if (card.getValue() <= 10) path += card.getValue() + "_of_";
-            else if (card.getValue() == 11) path += "jack_of_";
-            else if (card.getValue() == 12) path += "queen_of_";
-            else if (card.getValue() == 13) path += "king_of_";
-            else path += "ace_of_";
-
-            if (card.getSuit() == Suit.HEART) path += "hearts";
-            else if (card.getSuit() == Suit.SPADE) path += "spades";
-            else if (card.getSuit() == Suit.CLUB) path += "clubs";
-            else path += "diamonds";
-
-            path += ".png";
-
-            Image cardImage = new Image(Objects.requireNonNull(this.getClass().getResource(path)).toString());
-            ImageView imageView = new ImageView(cardImage);
+            ImageView imageView = new ImageView(setCardImage(card));
             imageView.setPreserveRatio(true);
             imageView.setFitHeight(100);
             imageView.setFitWidth(50);
-            imageView.setTranslateX((i) * (-25));
+            //imageView.setTranslateX(i * (cardsOffset));
 
             int finalI = i;
             imageView.setOnMouseClicked(e -> {
@@ -90,7 +83,7 @@ public class GameController {
                 }
             });
 
-            cardsOnScreen.put(clientCards.get(i), imageView);
+            cardsOnScreen.put(i, imageView);
             playerCardsBox.getChildren().add(imageView);
 
             i++;
@@ -100,11 +93,43 @@ public class GameController {
     /**
      * Removes the played card from the player's hand, and places it in the middle of the screen
      */
-    public void playCard(Card card) {
-        playerPlayedCardPane.getChildren().add(cardsOnScreen.get(card));
+    public void playCard(int cardIndex) {
 
-        playerCardsBox.getChildren().remove(cardsOnScreen.get(card));
-        cardsOnScreen.remove(card);
+        cardsOffset -= 2;
+        for (int i = 0; i < cardsOnScreen.size(); i++) {
+            //cardsOnScreen.get(i).setTranslateX(i * (cardsOffset));
+        }
+
+        cardsOnScreen.get(cardIndex).setTranslateX(0);
+        //playerPlayedCardView.getChildren().add(cardsOnScreen.get(cardIndex));
+        playerPlayedCardView.setImage(cardsOnScreen.get(cardIndex).getImage());
+
+        playerCardsBox.getChildren().remove(cardsOnScreen.get(cardIndex));
+        cardsOnScreen.remove(cardIndex);
+    }
+
+    public void placeOtherPlayersCard(Card playedCard, int clientId) {
+        if (clientId == otherPlayerIds.get(0)) otherPlayedCardView1.setImage(setCardImage(playedCard));
+        else if (clientId == otherPlayerIds.get(1)) otherPlayedCardView2.setImage(setCardImage(playedCard));
+        else otherPlayedCardView3.setImage(setCardImage(playedCard));
+    }
+
+    public Image setCardImage(Card card) {
+        String path = "cards/";
+        if (card.getValue() <= 10) path += card.getValue() + "_of_";
+        else if (card.getValue() == 11) path += "jack_of_";
+        else if (card.getValue() == 12) path += "queen_of_";
+        else if (card.getValue() == 13) path += "king_of_";
+        else path += "ace_of_";
+
+        if (card.getSuit() == Suit.HEART) path += "hearts";
+        else if (card.getSuit() == Suit.SPADE) path += "spades";
+        else if (card.getSuit() == Suit.CLUB) path += "clubs";
+        else path += "diamonds";
+
+        path += ".png";
+
+        return new Image(Objects.requireNonNull(this.getClass().getResource(path)).toString());
     }
 
     public void setClient(Client client) {

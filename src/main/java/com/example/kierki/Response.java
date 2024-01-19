@@ -6,5 +6,6 @@ public enum Response {
     JOINED_ROOM,
     ROOM_CREATED,
     DEALT_CARDS,
-    PLAYED_CARD
+    PLAYED_CARD,
+    CARDS_UPDATE
 }

@@ -123,8 +123,10 @@ public class ClientHandler implements Runnable {
                         out.reset();
                         out.writeObject(Response.PLAYED_CARD);
                         out.writeObject(rooms.get(roomId).getCards().get(cardIndex));
+                        out.writeObject(rooms.get(roomId));
                         out.flush();
-                        //TODO broadcast the played card to everyone
+
+                        broadcastPlay(rooms.get(roomId), card);
                     }
                 }
 
@@ -147,6 +149,28 @@ public class ClientHandler implements Runnable {
                 {
                     handler.out.reset();
                     handler.out.writeObject(Response.ROOMS_UPDATE);
+                    handler.out.writeObject(room);
+                    out.flush();
+                }
+            } catch (IOException e){
+                closeEverything(socket, in, out);
+            }
+        }
+    }
+
+    /**
+     * Broadcasts the changes caused by a player playing a card
+     * @param room room with updated deck and turn
+     * @param playedCard the played card, for making updating the GUI easier
+     */
+    public synchronized void broadcastPlay(Room room, Card playedCard){
+        for (ClientHandler handler : clientHandlers){
+            try {
+                if (handler != this)
+                {
+                    handler.out.reset();
+                    handler.out.writeObject(Response.CARDS_UPDATE);
+                    handler.out.writeObject(playedCard);
                     handler.out.writeObject(room);
                     out.flush();
                 }

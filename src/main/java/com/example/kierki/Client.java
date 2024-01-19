@@ -229,12 +229,22 @@ public class Client {
                     }
                     else if (response == Response.PLAYED_CARD) {
                         Card playedCard = (Card) in.readObject();
+                        Room room = (Room) in.readObject();
+                        rooms.put(room.getRoomId(), room); //updates the turn
                         System.out.println("Client succesfully played card: " + playedCard.getValue() + " " + playedCard.getSuit());
 
-                        int cardIndex = cardsInHand.indexOf(playedCard);
+                        int cardIndex = findCard(playedCard);
                         cardsInHand.set(cardIndex, playedCard);
 
-                        Platform.runLater(() -> gameController.playCard(cardsInHand.get(cardIndex)));
+                        Platform.runLater(() -> gameController.playCard(cardIndex));
+                    }
+                    else if (response == Response.CARDS_UPDATE) {
+                        Card playedCard = (Card) in.readObject();
+                        Room room = (Room) in.readObject();
+                        rooms.put(room.getRoomId(), room);
+                        System.out.println("Player: " + playedCard.getClientId() + " played: " + playedCard.getValue() + " " + playedCard.getSuit());
+
+                        Platform.runLater(() -> gameController.placeOtherPlayersCard(playedCard,  playedCard.getClientId()));
                     }
 
                 } catch (Exception e) {
@@ -243,6 +253,22 @@ public class Client {
             }
         }).start();
     }
+
+    /**
+     * Function to find the given card in the player's hand, after its values have been changed by the server
+     * @param updatedCard the card it looks for
+     */
+    public int findCard(Card updatedCard) {
+        int index = 0;
+        for (Card card : this.cardsInHand) {
+            if (card.getSuit() == updatedCard.getSuit() && card.getValue() == updatedCard.getValue()) {
+                break;
+            }
+            index++;
+        }
+        return index;
+    }
+
 
     public void closeEverything() {
         try {
