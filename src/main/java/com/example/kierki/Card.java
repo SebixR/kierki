@@ -1,6 +1,7 @@
 package com.example.kierki;
 
 import java.io.Serializable;
+import java.util.Comparator;
 
 public class Card implements Serializable {
 
@@ -18,6 +19,17 @@ public class Card implements Serializable {
     public void resetCard() {
         this.inHand = true;
         this.clientId = 0;
+    }
+
+    public static class CardComparator implements Comparator<Card> {
+        public int compare(Card a, Card b) {
+            if (a.suit == b.suit) {
+                return a.value - b.value;
+            }
+            else {
+                return a.suit.compareTo(b.suit);
+            }
+        }
     }
 
     public int getValue() {

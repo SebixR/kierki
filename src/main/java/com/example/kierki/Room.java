@@ -13,7 +13,7 @@ public class Room implements Serializable {
     private final HashMap<Integer, Integer> playerPoints = new HashMap<>(); //key - clientId, value - points
     private boolean isFull;
     private List<Card> cards;
-    private HashMap<Integer, Card> cardsOnTable = new HashMap<>();
+    private final HashMap<Integer, Card> cardsOnTable = new HashMap<>();
     private Card firstCardOnTable;
     private int currentTurn;
     private int currentRound;
@@ -24,7 +24,7 @@ public class Room implements Serializable {
         this.roomId = roomId;
         this.isFull = false;
         this.currentTurn = hostId; //the host starts the game (technically the person on the LEFT of the host should start)
-        this.currentRound = 1;
+        this.currentRound = 7;
         connectedPlayers.add(hostId);
 
         initializeDeck();

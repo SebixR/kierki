@@ -1,11 +1,13 @@
 package com.example.kierki;
 
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
+import javafx.scene.text.Font;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +46,12 @@ public class GameController {
     private HBox playerCardsBox;
     @FXML
     private Label roundLabel;
+    @FXML
+    private Pane winnerPane;
+    @FXML
+    private Label winnerLabel;
+    @FXML
+    private Button exitButton;
     private int cardsOffset = -25;
 
     /**
@@ -51,6 +59,8 @@ public class GameController {
      * @param players a list of the players' id's
      */
     public void setLabels(List<Integer> players) {
+        winnerPane.setVisible(false);
+
         currentPlayerLabel.setText(String.valueOf(client.getClientId()));
         scoreboardScoreLabels.put(client.getClientId(), new Label("0"));
         int playerIndex = players.indexOf(client.getClientId());
@@ -170,6 +180,11 @@ public class GameController {
     public void updateRound(int round) {
         this.round = round;
         roundLabel.setText("Round: " + round);
+    }
+
+    public void showWinner(int winnerId) {
+        winnerLabel.setText("Winner: " + winnerId + "!");
+        winnerPane.setVisible(true);
     }
 
     /**

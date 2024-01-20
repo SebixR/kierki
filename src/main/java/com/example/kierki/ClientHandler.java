@@ -142,9 +142,23 @@ public class ClientHandler implements Runnable {
                             }
 
                             if (remainingCards == 0) {
-                                changeRound(roomId);
 
-                                broadcastRoundChange(rooms.get(roomId));
+                                if (rooms.get(roomId).getCurrentRound() == 7) {
+                                    int winnerId = 0;
+                                    int minimumPoints = Integer.MAX_VALUE;
+                                    for (Integer client : rooms.get(roomId).getConnectedPlayers()) {
+                                        if (rooms.get(roomId).getPlayerPoints().get(client) <= minimumPoints) {
+                                            minimumPoints = rooms.get(roomId).getPlayerPoints().get(client);
+                                            winnerId = client;
+                                        }
+                                    }
+
+                                    broadcastVictory(winnerId);
+                                }
+                                else {
+                                    changeRound(roomId);
+                                    broadcastRoundChange(rooms.get(roomId));
+                                }
                             }
                         }
                     }
@@ -231,6 +245,19 @@ public class ClientHandler implements Runnable {
                 handler.out.reset();
                 handler.out.writeObject(Response.ROUND_OVER);
                 handler.out.writeObject(room);
+                handler.out.flush();
+            } catch (IOException e){
+                closeEverything(socket, in, out);
+            }
+        }
+    }
+
+    public synchronized void broadcastVictory(int winnerId) { //TODO username not ID
+        for (ClientHandler handler : clientHandlers){
+            try {
+                handler.out.reset();
+                handler.out.writeObject(Response.GAME_OVER);
+                handler.out.writeObject(winnerId);
                 handler.out.flush();
             } catch (IOException e){
                 closeEverything(socket, in, out);

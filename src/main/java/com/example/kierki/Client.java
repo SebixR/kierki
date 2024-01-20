@@ -20,7 +20,6 @@ public class Client {
     private int clientId;
     private int currentRoomId = 0;
     private List<Card> cardsInHand = new ArrayList<>();
-    private int points;
     private HashMap<Integer, Room> rooms;
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
@@ -221,6 +220,8 @@ public class Client {
                             cardsInHand.add(card);
                         }
 
+                        cardsInHand.sort(new Card.CardComparator());
+
                         System.out.println("Received cards:");
                         for (Card card : cardsInHand) {
                             System.out.println(card.getValue() + " " + card.getSuit());
@@ -254,8 +255,6 @@ public class Client {
                         rooms.put(room.getRoomId(), room);
                         System.out.println("Player: " + takerClientId + " received: " + receivedPoints + " points");
 
-                        if (takerClientId == this.clientId) this.points += receivedPoints;
-
                         Platform.runLater(() ->{
                             gameController.clearTable();
                             gameController.updatePoints(takerClientId, room.getPlayerPoints().get(takerClientId));
@@ -270,6 +269,11 @@ public class Client {
 
                         Platform.runLater(() -> gameController.updateRound(room.getCurrentRound()));
                     }
+                    else if (response == Response.GAME_OVER) {
+                        int winnerId = (int) in.readObject();
+
+                        Platform.runLater(() -> gameController.showWinner(winnerId));
+                    }
 
                 } catch (Exception e) {
                     closeEverything();
@@ -279,7 +283,7 @@ public class Client {
     }
 
     /**
-     * Function to find the given card in the player's hand, after its values have been changed by the server
+     * Function to find the given card in the player's hand, after its fields have been changed by the server
      * @param updatedCard the card it looks for
      */
     public int findCard(Card updatedCard) {
