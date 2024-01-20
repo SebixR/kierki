@@ -129,21 +129,23 @@ public class ClientHandler implements Runnable {
                         broadcastPlay(rooms.get(roomId), card);
 
                         if (rooms.get(roomId).getCardsOnTable().size() == 4) {
-                            out.reset();
+                            int points = calculatePoints(roomId);
+                            int takerClientId = pickLoosingPlayer(roomId);
 
-                            int oldestCardValue = 2;
-                            int takerClientId = rooms.get(roomId).getCardsOnTable().get(this.clientId).getClientId();
-                            for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
-                                if (entry.getValue().getValue() > oldestCardValue && entry.getValue().getSuit() == rooms.get(roomId).getFirstCardOnTable().getSuit()) {
-                                    oldestCardValue = entry.getValue().getValue();
-                                    takerClientId = entry.getValue().getClientId();
-                                }
+                            endTurn(roomId, takerClientId, points);
+
+                            broadcastPoints(points, takerClientId, rooms.get(roomId));
+
+                            int remainingCards = 0;
+                            for (int i = 0; i < CARDS_IN_DECK; i++) {
+                                if (rooms.get(roomId).getCards().get(i).isInHand()) remainingCards++;
                             }
 
-                            endTurn(roomId, takerClientId, 20);
+                            if (remainingCards == 0) {
+                                changeRound(roomId);
 
-                            broadcastPoints(20, takerClientId, rooms.get(roomId));
-                            out.flush();
+                                broadcastRoundChange(rooms.get(roomId));
+                            }
                         }
                     }
                 }
@@ -198,6 +200,12 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    /**
+     * Broadcasts information at the end of a turn
+     * @param points the amount of points received by one player
+     * @param clientId the player who receives the points
+     * @param room the updated room, ready for the next turn
+     */
     public synchronized void broadcastPoints(int points, int clientId, Room room) {
         for (ClientHandler handler : clientHandlers){
             try {
@@ -205,6 +213,23 @@ public class ClientHandler implements Runnable {
                 handler.out.writeObject(Response.TURN_OVER);
                 handler.out.writeObject(clientId);
                 handler.out.writeObject(points);
+                handler.out.writeObject(room);
+                handler.out.flush();
+            } catch (IOException e){
+                closeEverything(socket, in, out);
+            }
+        }
+    }
+
+    /**
+     * Informs all the players that the round is over, and thus a new one started
+     * @param room the updated room, ready for the next round
+     */
+    public synchronized void broadcastRoundChange(Room room) {
+        for (ClientHandler handler : clientHandlers){
+            try {
+                handler.out.reset();
+                handler.out.writeObject(Response.ROUND_OVER);
                 handler.out.writeObject(room);
                 handler.out.flush();
             } catch (IOException e){
@@ -290,16 +315,32 @@ public class ClientHandler implements Runnable {
         return cardIndex;
     }
 
+    /**
+     * Decides whether the player is allowed to play the card they chose
+     * @param card the card the player wants to play
+     * @param roomId the room where the game's taking place
+     * @return true if the player is allowed to play the card, false otherwise
+     */
     public boolean validateMove(Card card, int roomId) {
 
-        if (rooms.get(roomId).getCurrentRound() == 1) {
-            return handleRound1(card, roomId);
+        if (rooms.get(roomId).getCurrentRound() == 1
+                || rooms.get(roomId).getCurrentRound() == 3
+                || rooms.get(roomId).getCurrentRound() == 4
+                || rooms.get(roomId).getCurrentRound() == 6) {
+            return handleRound1346(card, roomId);
         }
-
-        return false;
+        else {
+            return handleRound257(card, roomId);
+        }
     }
 
-    public boolean handleRound1(Card card, int roomId) {
+    /**
+     * Validates a player's move in rounds 1, 3, 4 and 6
+     * @param card the card the player wants to play
+     * @param roomId the room where the game's taking place
+     * @return true if they are allowed to play the card, false otherwise
+     */
+    public boolean handleRound1346(Card card, int roomId) {
         if (rooms.get(roomId).getCardsOnTable().size() == 0) {
             return true;
         }
@@ -307,24 +348,158 @@ public class ClientHandler implements Runnable {
             Suit currentSuit = rooms.get(roomId).getFirstCardOnTable().getSuit();
             if (card.getSuit() == currentSuit) return true;
 
-            boolean hasMatchingColor = false;
-            for (int i = 0; i < CARDS_IN_DECK; i++) {
-                if (rooms.get(roomId).getCards().get(i).getClientId() == this.clientId
-                        && rooms.get(roomId).getCards().get(i).getSuit() == currentSuit){
-                    hasMatchingColor = true;
-                }
-            }
-            return !hasMatchingColor;
+            return hasMatchingColor(currentSuit, roomId);
         }
     }
 
+    /**
+     * Validates a player's move in rounds 2, 5 and 7
+     * @param card the card the player wants to play
+     * @param roomId the room where the game's taking place
+     * @return true if they are allowed to play the card, false otherwise
+     */
+    public boolean handleRound257(Card card, int roomId) {
+        if (rooms.get(roomId).getCardsOnTable().size() == 0) {
+            if (card.getSuit() != Suit.HEART) return true;
+            else { // the card is a heart
+                boolean hasOtherThanHeart = false;
+                for (int i = 0; i < CARDS_IN_DECK; i++) {
+                    if (rooms.get(roomId).getCards().get(i).getClientId() == this.clientId
+                            && rooms.get(roomId).getCards().get(i).getSuit() != Suit.HEART
+                            && rooms.get(roomId).getCards().get(i).isInHand()){
+                        hasOtherThanHeart = true;
+                    }
+                }
+
+                return !hasOtherThanHeart;
+            }
+        }
+        else {
+            Suit currentSuit = rooms.get(roomId).getFirstCardOnTable().getSuit();
+            if (currentSuit == card.getSuit()) return true;
+
+            return hasMatchingColor(currentSuit, roomId);
+        }
+    }
+
+    /**
+     * Checks it the player has a card that matchers the color of the first card
+     * @param currentSuit the suit of the first card that was played in this turn
+     * @param roomId the room where the game's taking place
+     * @return false if the player has a matching card, true when they don't, and thus are allowed to play any card
+     */
+    public boolean hasMatchingColor(Suit currentSuit, int roomId){
+        boolean hasMatchingColor = false;
+        for (int i = 0; i < CARDS_IN_DECK; i++) {
+            if (rooms.get(roomId).getCards().get(i).getClientId() == this.clientId
+                    && rooms.get(roomId).getCards().get(i).getSuit() == currentSuit
+                    && rooms.get(roomId).getCards().get(i).isInHand()){
+                hasMatchingColor = true;
+            }
+        }
+        return !hasMatchingColor;
+    }
+
+    /**
+     * Prepares all the fields in Room for the next turn
+     * @param roomId the room in which the turn ended
+     * @param clientId the client taking the cards
+     * @param points the amount of points the client receives
+     */
     public synchronized void endTurn(int roomId, int clientId, int points) {
         rooms.get(roomId).getCardsOnTable().clear();
         rooms.get(roomId).setFirstCardOnTable(null);
         rooms.get(roomId).setCurrentTurn(clientId);
-        rooms.get(roomId).getPlayerPoints().put(clientId, points);
+        rooms.get(roomId).givePoints(clientId, points); //playerPoints is filled with 0's when the fourth player joins
+        rooms.get(roomId).incrementTurnCounter(); //necessary for the 6th round
     }
 
+    /**
+     * Increments the current round
+     * @param roomId the room in which the round changes
+     */
+    public synchronized void changeRound(int roomId) {
+        for (int i = 0; i < CARDS_IN_DECK; i++) {
+            rooms.get(roomId).getCards().get(i).resetCard();
+        }
+
+        rooms.get(roomId).setCurrentTurn(rooms.get(roomId).getHostId());
+        rooms.get(roomId).changeTurn();
+        rooms.get(roomId).resetTurnCounter();
+        rooms.get(roomId).incrementCurrentRound();
+    }
+
+    /**
+     * Calculated the amount of points a player will gain based on the round
+     * @param roomId the room in which the game's taking place
+     * @return the amount of points the player will gain
+     */
+    public int calculatePoints(int roomId) {
+        int points = 0;
+
+        if (rooms.get(roomId).getCurrentRound() == 1) {
+            points = 20; //someone is guaranteed to get points every turn
+        }
+        else if (rooms.get(roomId).getCurrentRound() == 2) {
+            for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
+                if (entry.getValue().getSuit() == Suit.HEART) points += 20; //for every heart
+            }
+        }
+        else if (rooms.get(roomId).getCurrentRound() == 3) {
+            for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
+                if (entry.getValue().getValue() == 12) points += 60; //for every queen
+            }
+        }
+        else if (rooms.get(roomId).getCurrentRound() == 4) {
+            for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
+                if (entry.getValue().getValue() == 11 || entry.getValue().getValue() == 13) points += 30; //for every sir
+            }
+        }
+        else if (rooms.get(roomId).getCurrentRound() == 5) {
+            for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
+                if (entry.getValue().getValue() == 13 && entry.getValue().getSuit() == Suit.HEART) points += 150; //for every king of hearts
+            }
+        }
+        else if (rooms.get(roomId).getCurrentRound() == 6) {
+            for (Map.Entry<Integer, Card> ignored : rooms.get(roomId).getCardsOnTable().entrySet()) {
+                if (rooms.get(roomId).getTurnCounter() == 7 || rooms.get(roomId).getTurnCounter() == 13) points += 75; //for the 7th and last turn
+            }
+        }
+        else {
+            points += 20; //someone is guaranteed to get points every turn
+            for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
+                if (entry.getValue().getSuit() == Suit.HEART) points += 20;
+                if (entry.getValue().getValue() == 12) points += 60;
+                if (entry.getValue().getValue() == 11 || entry.getValue().getValue() == 13) points += 30;
+                if (entry.getValue().getValue() == 13 && entry.getValue().getSuit() == Suit.HEART) points += 150;
+                if (rooms.get(roomId).getTurnCounter() == 7 || rooms.get(roomId).getTurnCounter() == 13) points += 75;
+            }
+        }
+
+        return points;
+    }
+
+    /**
+     * Picks the player who will gain points this turn, based on the cards on the table
+     * @param roomId the room where the game takes place
+     * @return the loosing client's ID
+     */
+    public int pickLoosingPlayer(int roomId) {
+        int oldestCardValue = 1;
+        int takerClientId = 0;
+        for (Map.Entry<Integer, Card> entry : rooms.get(roomId).getCardsOnTable().entrySet()) {
+            if (entry.getValue().getValue() > oldestCardValue
+                    && entry.getValue().getSuit() == rooms.get(roomId).getFirstCardOnTable().getSuit()) {
+                oldestCardValue = entry.getValue().getValue();
+                takerClientId = entry.getValue().getClientId();
+            }
+        }
+        return takerClientId;
+    }
+
+    /**
+     * Removes the clientHandler when the client disconnects
+     */
     public void removeClientHandler(){
         clientHandlers.remove(this);
     }

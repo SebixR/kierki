@@ -256,7 +256,19 @@ public class Client {
 
                         if (takerClientId == this.clientId) this.points += receivedPoints;
 
-                        //TODO clear all cards on table and add a scoreboard
+                        Platform.runLater(() ->{
+                            gameController.clearTable();
+                            gameController.updatePoints(takerClientId, room.getPlayerPoints().get(takerClientId));
+                        });
+                    }
+                    else if (response == Response.ROUND_OVER) {
+                        Room room = (Room) in.readObject();
+                        rooms.put(room.getRoomId(), room);
+
+                        out.writeObject(Request.DEAL_CARDS);
+                        out.writeObject(currentRoomId);
+
+                        Platform.runLater(() -> gameController.updateRound(room.getCurrentRound()));
                     }
 
                 } catch (Exception e) {

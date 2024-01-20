@@ -4,6 +4,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
 <AnchorPane maxHeight="480.0" maxWidth="640.0" minHeight="480.0" minWidth="640.0" prefHeight="480.0" prefWidth="640.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.kierki.GameController">
@@ -21,5 +22,12 @@
       <ImageView fx:id="otherPlayedCardView1" fitHeight="103.0" fitWidth="65.0" layoutX="203.0" layoutY="188.0" pickOnBounds="true" preserveRatio="true" />
       <ImageView fx:id="otherPlayedCardView2" fitHeight="103.0" fitWidth="65.0" layoutX="288.0" layoutY="107.0" pickOnBounds="true" preserveRatio="true" />
       <ImageView fx:id="otherPlayedCardView3" fitHeight="103.0" fitWidth="65.0" layoutX="371.0" layoutY="188.0" pickOnBounds="true" preserveRatio="true" />
+      <VBox fx:id="scoreboardNamesVBox" layoutX="471.0" layoutY="5.0" prefHeight="129.0" prefWidth="128.0" />
+      <VBox fx:id="scoreboardScoresVBox" layoutX="596.0" layoutY="5.0" prefHeight="129.0" prefWidth="42.0" />
+      <Label fx:id="roundLabel" layoutX="32.0" layoutY="22.0" text="Round:">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
    </children>
 </AnchorPane>

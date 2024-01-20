@@ -10,13 +10,14 @@ public class Room implements Serializable {
     private final int roomId;
     private final int hostId;
     private final List<Integer> connectedPlayers = new ArrayList<>();
-    private HashMap<Integer, Integer> playerPoints = new HashMap<>(); //key - clientId, value - points
+    private final HashMap<Integer, Integer> playerPoints = new HashMap<>(); //key - clientId, value - points
     private boolean isFull;
     private List<Card> cards;
     private HashMap<Integer, Card> cardsOnTable = new HashMap<>();
     private Card firstCardOnTable;
     private int currentTurn;
     private int currentRound;
+    private int turnCounter = 1;
 
     public Room(int hostId, int roomId){
         this.hostId = hostId;
@@ -82,11 +83,26 @@ public class Room implements Serializable {
     }
 
     /**
-     * Setter for currentTurn, used at the end of the turn
+     * Setter for currentTurn, used at the end of the turn, and at the end of the round
      * @param clientId the client who took the cards, and thus will start the next turn
      */
     public void setCurrentTurn(int clientId) {
         this.currentTurn = clientId;
+    }
+
+    /**
+     * Increments the current turn number, for the 6th and 7th rounds
+     */
+    public void incrementTurnCounter() {
+        this.turnCounter++;
+    }
+
+    public void incrementCurrentRound() {
+        this.currentRound++;
+    }
+
+    public void resetTurnCounter() {
+        this.currentTurn = 1;
     }
 
     public boolean isFull(){
@@ -123,6 +139,10 @@ public class Room implements Serializable {
     public int getCurrentTurn() {
         return this.currentTurn;
     }
+
+    public int getTurnCounter() {
+        return this.turnCounter;
+    }
     public Card getFirstCardOnTable() {
         return this.firstCardOnTable;
     }
@@ -137,6 +157,7 @@ public class Room implements Serializable {
     public void setFirstCardOnTable(Card card) {
         this.firstCardOnTable = card;
     }
+
     public void incrementRound() {
         this.currentRound++;
     }

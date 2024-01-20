@@ -8,5 +8,6 @@ public enum Response {
     DEALT_CARDS,
     PLAYED_CARD,
     CARDS_UPDATE,
-    TURN_OVER
+    TURN_OVER,
+    ROUND_OVER
 }
