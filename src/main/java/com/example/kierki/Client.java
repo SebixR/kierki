@@ -140,199 +140,37 @@ public class Client {
                     Response response = (Response) in.readObject();
 
                     if (response == Response.SET_USERNAME) {
-                        boolean usernameSet = (boolean) in.readObject();
-
-                        if (usernameSet) {
-                            this.username = (String) in.readObject();
-                            receiveRooms();
-                            System.out.println("Available rooms:");
-                            for (Map.Entry<Integer, Room> entry : rooms.entrySet()) {
-                                System.out.println("Id: " + entry.getValue().getRoomId() + " players: " + entry.getValue().getPlayerAmount() + "/4\n");
-                            }
-
-                            Platform.runLater(() -> {
-                                primaryStage.setScene(roomsScene);
-                            });
-                        }
-                        else {
-                            Platform.runLater(() -> usernameController.showErrorLabel());
-                        }
+                        handleSetUsername();
                     }
                     if (response == Response.ROOMS_UPDATE) {
-                        Room room = (Room) in.readObject();
-                        int roomId = room.getRoomId();
-
-                        if (rooms.get(roomId) == null){
-                            roomsController.addRoom(room);
-                        }
-
-                        System.out.println("Room size: " + room.getPlayerAmount());
-
-                        Platform.runLater(() -> {
-                            roomsController.updateRoomButton(room.getRoomId(), room.getPlayerAmount());
-
-                            if (currentRoomId == room.getRoomId())
-                            {
-                                waitingController.getConnectedPlayersVBox().getChildren().clear();
-                                for (int i = 0; i < room.getPlayerAmount(); i++) {
-                                    waitingController.addPlayerLabel(room.getConnectedPlayersNames().get(i));
-                                }
-
-                                if (room.isFull()) {
-                                    try {
-                                        gameController.clear();
-                                        startGame();
-                                        gameController.highlightPlayer(room.getHostId());
-                                    } catch (IOException e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                }
-                            }
-                        });
-
-                        rooms.put(roomId, room);//won't add a new one if the key's already there
+                        handleRoomsUpdate();
                     }
                     else if (response == Response.ROOM_CREATED) {
-                        Room room = (Room) in.readObject();
-
-                        Platform.runLater(() -> waitingController.addPlayerLabel(username));
-
-                        currentRoomId = room.getRoomId();
-                        rooms.put(room.getRoomId(), room);
+                        handleRoomCreated();
                     }
                     else if (response == Response.INVITATION) {
-                        Invitation invitation = (Invitation) in.readObject();
-                        System.out.println("Received invitation");
-
-                        Platform.runLater(() -> {
-                            Stage popupStage = new Stage();
-                            popupStage.initModality(Modality.APPLICATION_MODAL); //blocks other events until is closed
-                            popupStage.setTitle("Invitation");
-                            FXMLLoader popupLoader = new FXMLLoader(getClass().getResource("popup.fxml"));
-                            try {
-                                popupLoader.load();
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                            PopupController popupController = popupLoader.getController();
-
-                            popupController.setInviterLabel(invitation.getInviterName());
-                            popupController.setClient(this);
-                            popupController.setRoomId(invitation.getRoomId());
-                            popupController.setPopupStage(popupStage);
-
-                            Scene popupScene = new Scene(popupLoader.getRoot());
-
-                            popupStage.setScene(popupScene);
-                            popupStage.showAndWait();
-                        });
+                        handleInvitation();
                     }
                     else if (response == Response.JOINED_ROOM) {
-                        Room room = (Room) in.readObject();
-                        currentRoomId = room.getRoomId();
-
-                        rooms.put(room.getRoomId(), room); //won't add a new one if the key's already there
-
-                        Platform.runLater(() -> {
-                            primaryStage.setScene(waitingScene);
-                            waitingController.addPlayerLabel(this.username);
-                            waitingController.hideInvitePane();
-
-                            waitingController.getConnectedPlayersVBox().getChildren().clear();
-                            for (int i = 0; i < room.getPlayerAmount(); i++) {
-                                waitingController.addPlayerLabel(room.getConnectedPlayersNames().get(i));
-                            }
-
-                            if (room.isFull()) {
-                                try {
-                                    gameController.clear();
-                                    startGame();
-                                    gameController.highlightPlayer(room.getHostId());
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                        });
+                        handleJoinedRoom();
                     }
                     else if (response == Response.DEALT_CARDS) {
-                        cardsInHand.clear();
-
-                        for (int i = 0; i < 13; i++)
-                        {
-                            Card card = (Card) in.readObject();
-                            cardsInHand.add(card);
-                        }
-
-                        cardsInHand.sort(new Card.CardComparator());
-
-                        System.out.println("Received cards:");
-                        for (Card card : cardsInHand) {
-                            System.out.println(card.getValue() + " " + card.getSuit());
-                        }
-
-                        Platform.runLater(() -> gameController.generatePlayerCards());
+                        handleDealtCards();
                     }
                     else if (response == Response.PLAYED_CARD) {
-                        Card playedCard = (Card) in.readObject();
-                        Room room = (Room) in.readObject();
-                        rooms.put(room.getRoomId(), room); //updates the turn
-                        System.out.println("Client succesfully played card: " + playedCard.getValue() + " " + playedCard.getSuit());
-
-                        int cardIndex = findCard(playedCard);
-                        cardsInHand.set(cardIndex, playedCard);
-
-                        Platform.runLater(() -> {
-                            gameController.playCard(cardIndex);
-                            gameController.highlightPlayer(room.getCurrentTurn());
-                        });
+                        handlePlayedCard();
                     }
                     else if (response == Response.CARDS_UPDATE) {
-                        Card playedCard = (Card) in.readObject();
-                        Room room = (Room) in.readObject();
-                        rooms.put(room.getRoomId(), room);
-                        System.out.println("Player: " + playedCard.getClientId() + " played: " + playedCard.getValue() + " " + playedCard.getSuit());
-
-                        Platform.runLater(() -> {
-                            gameController.placeOtherPlayersCard(playedCard,  playedCard.getClientId());
-                            gameController.highlightPlayer(room.getCurrentTurn());
-                        });
+                        handleCardsUpdate();
                     }
                     else if (response == Response.TURN_OVER) {
-                        int takerClientId = (int) in.readObject();
-                        int receivedPoints = (int) in.readObject();
-                        Room room = (Room) in.readObject();
-                        rooms.put(room.getRoomId(), room);
-                        System.out.println("Player: " + takerClientId + " received: " + receivedPoints + " points");
-
-                        Platform.runLater(() ->{
-                            gameController.clearTable();
-                            gameController.updatePoints(takerClientId, room.getPlayerPoints().get(takerClientId));
-                            gameController.highlightPlayer(room.getCurrentTurn());
-                        });
+                        handleTurnOver();
                     }
                     else if (response == Response.ROUND_OVER) {
-                        Room room = (Room) in.readObject();
-                        rooms.put(room.getRoomId(), room);
-
-                        out.writeObject(Request.DEAL_CARDS);
-                        out.writeObject(currentRoomId);
-
-                        Platform.runLater(() -> {
-                            gameController.updateRound(room.getCurrentRound());
-                            gameController.highlightPlayer(room.getCurrentTurn());
-                        });
+                        handleRoundOver();
                     }
                     else if (response == Response.GAME_OVER) {
-                        String winnerName = (String) in.readObject();
-                        Room room = (Room) in.readObject();
-
-                        rooms.remove(room.getRoomId());
-
-                        Platform.runLater(() -> {
-                            gameController.showWinner(winnerName);
-                            waitingController.clearLabels();
-                            roomsController.removeRoomButton(room.getRoomId());
-                        });
+                        handleGameOver();
                     }
 
                 } catch (Exception e) {
@@ -340,6 +178,212 @@ public class Client {
                 }
             }
         }).start();
+    }
+
+    private void handleSetUsername() throws IOException, ClassNotFoundException {
+        boolean usernameSet = (boolean) in.readObject();
+
+        if (usernameSet) {
+            this.username = (String) in.readObject();
+            receiveRooms();
+            System.out.println("Available rooms:");
+            for (Map.Entry<Integer, Room> entry : rooms.entrySet()) {
+                System.out.println("Id: " + entry.getValue().getRoomId() + " players: " + entry.getValue().getPlayerAmount() + "/4\n");
+            }
+
+            Platform.runLater(() -> {
+                primaryStage.setScene(roomsScene);
+            });
+        }
+        else {
+            Platform.runLater(() -> usernameController.showErrorLabel());
+        }
+    }
+
+    private void handleRoomsUpdate() throws IOException, ClassNotFoundException {
+        Room room = (Room) in.readObject();
+        int roomId = room.getRoomId();
+
+        if (rooms.get(roomId) == null){
+            roomsController.addRoom(room);
+        }
+
+        System.out.println("Room size: " + room.getPlayerAmount());
+
+        Platform.runLater(() -> {
+            roomsController.updateRoomButton(room.getRoomId(), room.getPlayerAmount());
+
+            if (currentRoomId == room.getRoomId())
+            {
+                waitingController.getConnectedPlayersVBox().getChildren().clear();
+                for (int i = 0; i < room.getPlayerAmount(); i++) {
+                    waitingController.addPlayerLabel(room.getConnectedPlayersNames().get(i));
+                }
+
+                if (room.isFull()) {
+                    try {
+                        gameController.clear();
+                        startGame();
+                        gameController.highlightPlayer(room.getHostId());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        });
+
+        rooms.put(roomId, room);//won't add a new one if the key's already there
+    }
+
+    private void handleRoomCreated() throws IOException, ClassNotFoundException {
+        Room room = (Room) in.readObject();
+
+        Platform.runLater(() -> waitingController.addPlayerLabel(username));
+
+        currentRoomId = room.getRoomId();
+        rooms.put(room.getRoomId(), room);
+    }
+
+    private void handleInvitation() throws IOException, ClassNotFoundException {
+        Invitation invitation = (Invitation) in.readObject();
+        System.out.println("Received invitation");
+
+        Platform.runLater(() -> {
+            Stage popupStage = new Stage();
+            popupStage.initModality(Modality.APPLICATION_MODAL); //blocks other events until is closed
+            popupStage.setTitle("Invitation");
+            FXMLLoader popupLoader = new FXMLLoader(getClass().getResource("popup.fxml"));
+            try {
+                popupLoader.load();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            PopupController popupController = popupLoader.getController();
+
+            popupController.setInviterLabel(invitation.getInviterName());
+            popupController.setClient(this);
+            popupController.setRoomId(invitation.getRoomId());
+            popupController.setPopupStage(popupStage);
+
+            Scene popupScene = new Scene(popupLoader.getRoot());
+
+            popupStage.setScene(popupScene);
+            popupStage.showAndWait();
+        });
+    }
+
+    private void handleJoinedRoom() throws IOException, ClassNotFoundException {
+        Room room = (Room) in.readObject();
+        currentRoomId = room.getRoomId();
+
+        rooms.put(room.getRoomId(), room); //won't add a new one if the key's already there
+
+        Platform.runLater(() -> {
+            primaryStage.setScene(waitingScene);
+            waitingController.addPlayerLabel(this.username);
+            waitingController.hideInvitePane();
+
+            waitingController.getConnectedPlayersVBox().getChildren().clear();
+            for (int i = 0; i < room.getPlayerAmount(); i++) {
+                waitingController.addPlayerLabel(room.getConnectedPlayersNames().get(i));
+            }
+
+            if (room.isFull()) {
+                try {
+                    gameController.clear();
+                    startGame();
+                    gameController.highlightPlayer(room.getHostId());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+    }
+
+    private void handleDealtCards() throws IOException, ClassNotFoundException {
+        cardsInHand.clear();
+
+        for (int i = 0; i < 13; i++)
+        {
+            Card card = (Card) in.readObject();
+            cardsInHand.add(card);
+        }
+
+        cardsInHand.sort(new Card.CardComparator());
+
+        System.out.println("Received cards:");
+        for (Card card : cardsInHand) {
+            System.out.println(card.getValue() + " " + card.getSuit());
+        }
+
+        Platform.runLater(() -> gameController.generatePlayerCards());
+    }
+
+    private void handlePlayedCard() throws IOException, ClassNotFoundException {
+        Card playedCard = (Card) in.readObject();
+        Room room = (Room) in.readObject();
+        rooms.put(room.getRoomId(), room); //updates the turn
+        System.out.println("Client succesfully played card: " + playedCard.getValue() + " " + playedCard.getSuit());
+
+        int cardIndex = findCard(playedCard);
+        cardsInHand.set(cardIndex, playedCard);
+
+        Platform.runLater(() -> {
+            gameController.playCard(cardIndex);
+            gameController.highlightPlayer(room.getCurrentTurn());
+        });
+    }
+
+    private void handleCardsUpdate() throws IOException, ClassNotFoundException {
+        Card playedCard = (Card) in.readObject();
+        Room room = (Room) in.readObject();
+        rooms.put(room.getRoomId(), room);
+        System.out.println("Player: " + playedCard.getClientId() + " played: " + playedCard.getValue() + " " + playedCard.getSuit());
+
+        Platform.runLater(() -> {
+            gameController.placeOtherPlayersCard(playedCard,  playedCard.getClientId());
+            gameController.highlightPlayer(room.getCurrentTurn());
+        });
+    }
+
+    private void handleTurnOver() throws IOException, ClassNotFoundException {
+        int takerClientId = (int) in.readObject();
+        int receivedPoints = (int) in.readObject();
+        Room room = (Room) in.readObject();
+        rooms.put(room.getRoomId(), room);
+        System.out.println("Player: " + takerClientId + " received: " + receivedPoints + " points");
+
+        Platform.runLater(() ->{
+            gameController.clearTable();
+            gameController.updatePoints(takerClientId, room.getPlayerPoints().get(takerClientId));
+            gameController.highlightPlayer(room.getCurrentTurn());
+        });
+    }
+
+    private void handleRoundOver() throws IOException, ClassNotFoundException {
+        Room room = (Room) in.readObject();
+        rooms.put(room.getRoomId(), room);
+
+        out.writeObject(Request.DEAL_CARDS);
+        out.writeObject(currentRoomId);
+
+        Platform.runLater(() -> {
+            gameController.updateRound(room.getCurrentRound());
+            gameController.highlightPlayer(room.getCurrentTurn());
+        });
+    }
+
+    private void handleGameOver() throws IOException, ClassNotFoundException {
+        String winnerName = (String) in.readObject();
+        Room room = (Room) in.readObject();
+
+        rooms.remove(room.getRoomId());
+
+        Platform.runLater(() -> {
+            gameController.showWinner(winnerName);
+            waitingController.clearLabels();
+            roomsController.removeRoomButton(room.getRoomId());
+        });
     }
 
     /**

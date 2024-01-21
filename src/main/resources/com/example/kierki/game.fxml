@@ -33,8 +33,8 @@
       <ImageView fx:id="otherPlayedCardView1" fitHeight="129.0" fitWidth="80.0" layoutX="190.0" layoutY="176.0" pickOnBounds="true" preserveRatio="true" />
       <ImageView fx:id="otherPlayedCardView2" fitHeight="129.0" fitWidth="80.0" layoutX="279.0" layoutY="53.0" pickOnBounds="true" preserveRatio="true" />
       <ImageView fx:id="otherPlayedCardView3" fitHeight="129.0" fitWidth="80.0" layoutX="371.0" layoutY="176.0" pickOnBounds="true" preserveRatio="true" />
-      <VBox fx:id="scoreboardNamesVBox" layoutX="442.0" layoutY="33.0" prefHeight="103.0" prefWidth="128.0" />
-      <VBox fx:id="scoreboardScoresVBox" layoutX="579.0" layoutY="33.0" prefHeight="103.0" prefWidth="42.0" />
+      <VBox fx:id="scoreboardNamesVBox" layoutX="442.0" layoutY="33.0" prefHeight="89.0" prefWidth="128.0" />
+      <VBox fx:id="scoreboardScoresVBox" layoutX="579.0" layoutY="33.0" prefHeight="89.0" prefWidth="42.0" />
       <Label fx:id="roundLabel" layoutX="32.0" layoutY="22.0" text="Round:">
          <font>
             <Font name="System Bold" size="12.0" />
