@@ -10,7 +10,7 @@ public class Room implements Serializable {
     private final int roomId;
     private final int hostId;
     private final List<Integer> connectedPlayers = new ArrayList<>();
-    private List<String> connectedPlayersNames = new ArrayList<>();
+    private final List<String> connectedPlayersNames = new ArrayList<>();
     private final HashMap<Integer, Integer> playerPoints = new HashMap<>(); //key - clientId, value - points
     private boolean isFull;
     private List<Card> cards;
@@ -26,7 +26,7 @@ public class Room implements Serializable {
         this.roomId = roomId;
         this.isFull = false;
         this.currentTurn = hostId;
-        this.currentRound = 7;
+        this.currentRound = 1;
         connectedPlayers.add(hostId);
         connectedPlayersNames.add(username);
 

@@ -87,6 +87,7 @@ public class Client {
 
     public void joinCreatedRoom() {
         primaryStage.setScene(waitingScene);
+        waitingController.showInvitePane();
     }
 
     public void joinExistingRoom(int roomId) throws IOException {
@@ -118,12 +119,12 @@ public class Client {
         }
     }
 
-    public void requestPlayerInvite(int playerId) throws IOException {
+    public void requestPlayerInvite(String username) throws IOException {
         out.writeObject(Request.INVITE_PLAYER);
-        out.writeInt(playerId);
+        out.writeObject(username);
         out.flush();
 
-        System.out.println("Invited: " + playerId);
+        System.out.println("Invited: " + username);
     }
 
     public void exitGame() throws IOException {
@@ -181,6 +182,7 @@ public class Client {
                                     try {
                                         gameController.clear();
                                         startGame();
+                                        gameController.highlightPlayer(room.getHostId());
                                     } catch (IOException e) {
                                         throw new RuntimeException(e);
                                     }
@@ -203,7 +205,6 @@ public class Client {
                         System.out.println("Received invitation");
 
                         Platform.runLater(() -> {
-
                             Stage popupStage = new Stage();
                             popupStage.initModality(Modality.APPLICATION_MODAL); //blocks other events until is closed
                             popupStage.setTitle("Invitation");
@@ -215,7 +216,7 @@ public class Client {
                             }
                             PopupController popupController = popupLoader.getController();
 
-                            popupController.setInviterLabel(String.valueOf(invitation.getInviterId()));
+                            popupController.setInviterLabel(invitation.getInviterName());
                             popupController.setClient(this);
                             popupController.setRoomId(invitation.getRoomId());
                             popupController.setPopupStage(popupStage);
@@ -246,6 +247,7 @@ public class Client {
                                 try {
                                     gameController.clear();
                                     startGame();
+                                    gameController.highlightPlayer(room.getHostId());
                                 } catch (IOException e) {
                                     throw new RuntimeException(e);
                                 }
@@ -279,7 +281,10 @@ public class Client {
                         int cardIndex = findCard(playedCard);
                         cardsInHand.set(cardIndex, playedCard);
 
-                        Platform.runLater(() -> gameController.playCard(cardIndex));
+                        Platform.runLater(() -> {
+                            gameController.playCard(cardIndex);
+                            gameController.highlightPlayer(room.getCurrentTurn());
+                        });
                     }
                     else if (response == Response.CARDS_UPDATE) {
                         Card playedCard = (Card) in.readObject();
@@ -287,7 +292,10 @@ public class Client {
                         rooms.put(room.getRoomId(), room);
                         System.out.println("Player: " + playedCard.getClientId() + " played: " + playedCard.getValue() + " " + playedCard.getSuit());
 
-                        Platform.runLater(() -> gameController.placeOtherPlayersCard(playedCard,  playedCard.getClientId()));
+                        Platform.runLater(() -> {
+                            gameController.placeOtherPlayersCard(playedCard,  playedCard.getClientId());
+                            gameController.highlightPlayer(room.getCurrentTurn());
+                        });
                     }
                     else if (response == Response.TURN_OVER) {
                         int takerClientId = (int) in.readObject();
@@ -299,6 +307,7 @@ public class Client {
                         Platform.runLater(() ->{
                             gameController.clearTable();
                             gameController.updatePoints(takerClientId, room.getPlayerPoints().get(takerClientId));
+                            gameController.highlightPlayer(room.getCurrentTurn());
                         });
                     }
                     else if (response == Response.ROUND_OVER) {
@@ -308,7 +317,10 @@ public class Client {
                         out.writeObject(Request.DEAL_CARDS);
                         out.writeObject(currentRoomId);
 
-                        Platform.runLater(() -> gameController.updateRound(room.getCurrentRound()));
+                        Platform.runLater(() -> {
+                            gameController.updateRound(room.getCurrentRound());
+                            gameController.highlightPlayer(room.getCurrentTurn());
+                        });
                     }
                     else if (response == Response.GAME_OVER) {
                         String winnerName = (String) in.readObject();

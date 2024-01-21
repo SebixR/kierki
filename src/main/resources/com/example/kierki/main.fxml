@@ -4,16 +4,85 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.paint.Color?>
+<?import javafx.scene.paint.LinearGradient?>
+<?import javafx.scene.paint.Stop?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="480.0" prefWidth="640.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.kierki.RoomsController">
+<AnchorPane fx:id="roomsAnchorPane" prefHeight="480.0" prefWidth="640.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.kierki.RoomsController">
    <children>
-      <Button layoutX="518.0" layoutY="434.0" mnemonicParsing="false" onAction="#createRoomButton" text="Create Room" />
-      <Label layoutX="14.0" layoutY="42.0" prefHeight="20.0" prefWidth="121.0" text="Available rooms:">
+      <Button layoutX="366.0" layoutY="263.0" mnemonicParsing="false" onAction="#createRoomButton" text="Create Room">
+         <font>
+            <Font size="17.0" />
+         </font></Button>
+      <Label layoutX="14.0" layoutY="31.0" prefHeight="20.0" prefWidth="121.0" text="Available rooms:">
          <font>
             <Font size="14.0" />
          </font>
       </Label>
       <VBox fx:id="availableRoomsList" layoutX="14.0" layoutY="62.0" prefHeight="372.0" prefWidth="207.0" />
+      <Label layoutX="320.0" layoutY="41.0" text="Hearts">
+         <font>
+            <Font name="Century751 No2 BT Bold Italic" size="65.0" />
+         </font>
+         <textFill>
+            <LinearGradient endX="0.4353312543514023" endY="1.0">
+               <stops>
+                  <Stop>
+                     <color>
+                        <Color red="0.2368421107530594" green="0.005847953259944916" blue="0.005847953259944916" />
+                     </color>
+                  </Stop>
+                  <Stop offset="0.006711409395973154">
+                     <color>
+                        <Color red="0.2368421107530594" green="0.005847953259944916" blue="0.005847953259944916" />
+                     </color>
+                  </Stop>
+                  <Stop offset="0.428247940197523">
+                     <color>
+                        <Color red="0.44736841320991516" green="0.011046133935451508" blue="0.011046133935451508" />
+                     </color>
+                  </Stop>
+                  <Stop offset="1.0">
+                     <color>
+                        <Color red="0.859649121761322" green="0.07429066300392151" blue="0.07429066300392151" />
+                     </color>
+                  </Stop>
+               </stops>
+            </LinearGradient>
+         </textFill>
+      </Label>
+      <Label layoutX="368.0" layoutY="120.0" text="Online">
+         <font>
+            <Font name="Century751 No2 BT Italic" size="39.0" />
+         </font>
+         <textFill>
+            <LinearGradient endX="0.4353312543514023" endY="1.0">
+               <stops>
+                  <Stop>
+                     <color>
+                        <Color red="0.2368421107530594" green="0.005847953259944916" blue="0.005847953259944916" />
+                     </color>
+                  </Stop>
+                  <Stop offset="0.006711409395973154">
+                     <color>
+                        <Color red="0.2368421107530594" green="0.005847953259944916" blue="0.005847953259944916" />
+                     </color>
+                  </Stop>
+                  <Stop offset="0.428247940197523">
+                     <color>
+                        <Color red="0.44736841320991516" green="0.011046133935451508" blue="0.011046133935451508" />
+                     </color>
+                  </Stop>
+                  <Stop offset="1.0">
+                     <color>
+                        <Color red="0.859649121761322" green="0.07429066300392151" blue="0.07429066300392151" />
+                     </color>
+                  </Stop>
+               </stops>
+            </LinearGradient>
+         </textFill>
+      </Label>
+      <Button layoutX="395.0" layoutY="323.0" mnemonicParsing="false" onAction="#exit" prefHeight="25.0" prefWidth="61.0" text="Exit" />
    </children>
 </AnchorPane>

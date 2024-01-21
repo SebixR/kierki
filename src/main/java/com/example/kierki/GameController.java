@@ -1,12 +1,14 @@
 package com.example.kierki;
 
 import javafx.fxml.FXML;
+import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,7 +50,23 @@ public class GameController {
     private Pane winnerPane;
     @FXML
     private Label winnerLabel;
-    private int cardsOffset = -25;
+    @FXML
+    private AnchorPane gameAnchorPane;
+
+    public void stylize() {
+        gameAnchorPane.setStyle("-fx-background-color: radial-gradient(center 50% 50%, radius 100%, #b7b7b7, #f1f1f1);");
+
+        scoreboardNamesVBox.setStyle("-fx-background-radius: 10, 10, 10, 10; " +
+                "-fx-background-color: #fcfcfc; " +
+                "-fx-padding: 10px;");
+
+        scoreboardScoresVBox.setStyle("-fx-background-radius: 10, 10, 10, 10; " +
+                "-fx-background-color: #fcfcfc; " +
+                "-fx-padding: 10px;");
+
+        winnerPane.setStyle("-fx-background-radius: 10, 10, 10, 10; " +
+                "-fx-background-color: #fcfcfc; ");
+    }
 
     /**
      * Sets all the player's username labels, and initializes the scoreboard
@@ -90,7 +108,6 @@ public class GameController {
      * Generates the player's hand, after the cards have been delt
      */
     public void generatePlayerCards() {
-
         List<Card> clientCards = client.getCardsInHand();
 
         int i = 0;
@@ -100,7 +117,7 @@ public class GameController {
             imageView.setPreserveRatio(true);
             imageView.setFitHeight(100);
             imageView.setFitWidth(50);
-            //imageView.setTranslateX(i * (cardsOffset));
+            imageView.cursorProperty().setValue(Cursor.HAND);
 
             int finalI = i;
             imageView.setOnMouseClicked(e -> {
@@ -113,6 +130,8 @@ public class GameController {
 
             cardsOnScreen.put(i, imageView);
             playerCardsBox.getChildren().add(imageView);
+            int cardsOffset = -25;
+            HBox.setMargin(imageView, new javafx.geometry.Insets(0, 0, 0, cardsOffset));
 
             i++;
         }
@@ -122,14 +141,7 @@ public class GameController {
      * Removes the played card from the player's hand, and places it in the middle of the screen
      */
     public void playCard(int cardIndex) {
-
-        cardsOffset -= 2;
-        for (int i = 0; i < cardsOnScreen.size(); i++) {
-            //cardsOnScreen.get(i).setTranslateX(i * (cardsOffset));
-        }
-
         cardsOnScreen.get(cardIndex).setTranslateX(0);
-        //playerPlayedCardView.getChildren().add(cardsOnScreen.get(cardIndex));
         playerPlayedCardView.setImage(cardsOnScreen.get(cardIndex).getImage());
 
         playerCardsBox.getChildren().remove(cardsOnScreen.get(cardIndex));
@@ -175,6 +187,21 @@ public class GameController {
 
     public void updateRound(int round) {
         roundLabel.setText("Round: " + round);
+    }
+
+    public void highlightPlayer(int clientId) {
+        clearHighlightedLabels();
+        if (clientId == client.getClientId()) currentPlayerLabel.setTextFill(Color.GREEN);
+        else if (otherPlayerIds.get(0) == clientId) otherPlayerLabel1.setTextFill(Color.GREEN);
+        else if (otherPlayerIds.get(1) == clientId) otherPlayerLabel2.setTextFill(Color.GREEN);
+        else if (otherPlayerIds.get(2) == clientId) otherPlayerLabel3.setTextFill(Color.GREEN);
+    }
+
+    public void clearHighlightedLabels() {
+        currentPlayerLabel.setTextFill(Color.BLACK);
+        otherPlayerLabel1.setTextFill(Color.BLACK);
+        otherPlayerLabel2.setTextFill(Color.BLACK);
+        otherPlayerLabel3.setTextFill(Color.BLACK);
     }
 
     public void showWinner(String winnerName) {

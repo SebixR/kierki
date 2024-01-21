@@ -7,7 +7,6 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Map;
 
 public class HeartsApp extends Application {
     private Client client;
@@ -38,8 +37,11 @@ public class HeartsApp extends Application {
 
         usernameController.setClient(client);
         roomsController.setClient(client);
+        roomsController.stylize();
         waitingController.setClient(client);
+        waitingController.stylize();
         gameController.setClient(client);
+        gameController.stylize();
 
         usernameController.hideErrorLabel();
 

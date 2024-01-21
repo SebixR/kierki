@@ -3,6 +3,7 @@ package com.example.kierki;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
 
 import java.io.IOException;
@@ -11,14 +12,26 @@ import java.util.HashMap;
 public class RoomsController {
 
     private Client client;
-    private HashMap<Integer, Button> roomButtons = new HashMap<>();
+    private final HashMap<Integer, Button> roomButtons = new HashMap<>();
     @FXML
     private VBox availableRoomsList;
+    @FXML
+    private AnchorPane roomsAnchorPane;
 
     @FXML
-    void createRoomButton() throws IOException {
+    public void createRoomButton() throws IOException {
         client.requestRoomAdd();
         client.joinCreatedRoom();
+    }
+
+    @FXML
+    public void exit() throws IOException {
+        client.disconnectClient();
+        Platform.exit();
+    }
+
+    public void stylize() {
+        roomsAnchorPane.setStyle("-fx-background-color: radial-gradient(center 50% 50%, radius 100%, #b7b7b7, #f1f1f1);");
     }
 
     public void addRoom(Room room){
@@ -30,7 +43,7 @@ public class RoomsController {
             }
             else
             {
-                button.setText("Join " + room.getPlayerAmount() + "/4");
+                button.setText("Room ID: " + room.getRoomId() +  " Players " + room.getPlayerAmount() + "/4");
             }
 
             availableRoomsList.getChildren().add(button);
@@ -54,7 +67,7 @@ public class RoomsController {
                     roomButtons.get(roomId).setText("Full! 4/4");
                 }
                 else {
-                    roomButtons.get(roomId).setText("Join " + playerCount + "/4");
+                    roomButtons.get(roomId).setText("Room Id: " + roomId + " Players " + playerCount + "/4");
                 }
             });
         }

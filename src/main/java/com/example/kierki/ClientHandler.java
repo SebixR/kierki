@@ -13,7 +13,7 @@ public class ClientHandler implements Runnable {
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
     private int clientId; //given by the server
-    private static HashMap<Integer, String> usernames = new HashMap<>();
+    private static final HashMap<Integer, String> usernames = new HashMap<>();
     private boolean loggedIn = false;
     private boolean isInGame = false;
     private static final int CARDS_IN_DECK = 52;
@@ -81,7 +81,12 @@ public class ClientHandler implements Runnable {
                 }
                 else if (request == Request.INVITE_PLAYER)
                 {
-                    int inviteId = in.readInt(); //someone else's ID
+                    String inviteName = (String) in.readObject(); //someone else's ID
+                    int inviteId = 0;
+                    for (Map.Entry<Integer, String> entry : usernames.entrySet()) {
+                        if (entry.getValue().equals(inviteName)) inviteId = entry.getKey();
+                    }
+
                     if (this.clientId != inviteId)
                     {
                         for (ClientHandler handler : clientHandlers) {
@@ -90,7 +95,7 @@ public class ClientHandler implements Runnable {
                                 out.reset();
                                 handler.out.writeObject(Response.INVITATION);
                                 int foundRoomId = findRoom(this.clientId).getRoomId();
-                                Invitation invitation = new Invitation(this.clientId, foundRoomId);
+                                Invitation invitation = new Invitation(this.clientId, foundRoomId, usernames.get(clientId));
                                 handler.out.writeObject(invitation);
                                 handler.out.flush();
                                 break;
@@ -180,6 +185,12 @@ public class ClientHandler implements Runnable {
                 }
                 else if (request == Request.DISCONNECT) {
                     int roomId = (int) in.readObject();
+                    usernames.remove(this.clientId);
+
+                    if (rooms.get(roomId) == null) {
+                        closeEverything(socket, in, out);
+                        break;
+                    }
 
                     if (!rooms.get(roomId).getGameOver()) {
                         int winnerId = findWinner(roomId);

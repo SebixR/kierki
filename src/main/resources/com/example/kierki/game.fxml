@@ -9,31 +9,40 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane fx:id="mainGamePane" maxHeight="480.0" maxWidth="640.0" minHeight="480.0" minWidth="640.0" prefHeight="480.0" prefWidth="640.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.kierki.GameController">
+<AnchorPane fx:id="gameAnchorPane" maxHeight="480.0" maxWidth="640.0" minHeight="480.0" minWidth="640.0" prefHeight="480.0" prefWidth="640.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.kierki.GameController">
    <children>
-      <Label fx:id="otherPlayerLabel2" alignment="CENTER" layoutX="268.0" layoutY="5.0" prefHeight="17.0" prefWidth="103.0" text="Player2" />
-      <Label fx:id="otherPlayerLabel1" alignment="CENTER" layoutX="-28.0" layoutY="231.0" prefHeight="17.0" prefWidth="103.0" rotate="90.0" text="Player1" />
-      <Label fx:id="otherPlayerLabel3" alignment="CENTER" layoutX="565.0" layoutY="231.0" prefHeight="17.0" prefWidth="103.0" rotate="-90.0" text="Player3" />
-      <Label fx:id="currentPlayerLabel" alignment="CENTER" layoutX="268.0" layoutY="457.0" prefHeight="17.0" prefWidth="103.0" text="Player">
+      <Label fx:id="otherPlayerLabel2" alignment="CENTER" layoutX="268.0" layoutY="12.0" prefHeight="17.0" prefWidth="103.0" text="Player2">
          <font>
             <Font size="14.0" />
+         </font></Label>
+      <Label fx:id="otherPlayerLabel1" alignment="CENTER" layoutX="-28.0" layoutY="231.0" prefHeight="17.0" prefWidth="103.0" rotate="90.0" text="Player1">
+         <font>
+            <Font size="14.0" />
+         </font></Label>
+      <Label fx:id="otherPlayerLabel3" alignment="CENTER" layoutX="565.0" layoutY="231.0" prefHeight="17.0" prefWidth="103.0" rotate="-90.0" text="Player3">
+         <font>
+            <Font size="14.0" />
+         </font></Label>
+      <Label fx:id="currentPlayerLabel" alignment="CENTER" layoutX="267.0" layoutY="440.0" prefHeight="17.0" prefWidth="103.0" text="Player">
+         <font>
+            <Font size="17.0" />
          </font>
       </Label>
-      <HBox fx:id="playerCardsBox" layoutX="3.0" layoutY="348.0" prefHeight="89.0" prefWidth="632.0" />
-      <ImageView fx:id="playerPlayedCardView" fitHeight="103.0" fitWidth="65.0" layoutX="287.0" layoutY="240.0" pickOnBounds="true" preserveRatio="true" />
-      <ImageView fx:id="otherPlayedCardView1" fitHeight="103.0" fitWidth="65.0" layoutX="203.0" layoutY="188.0" pickOnBounds="true" preserveRatio="true" />
-      <ImageView fx:id="otherPlayedCardView2" fitHeight="103.0" fitWidth="65.0" layoutX="288.0" layoutY="107.0" pickOnBounds="true" preserveRatio="true" />
-      <ImageView fx:id="otherPlayedCardView3" fitHeight="103.0" fitWidth="65.0" layoutX="371.0" layoutY="188.0" pickOnBounds="true" preserveRatio="true" />
-      <VBox fx:id="scoreboardNamesVBox" layoutX="471.0" layoutY="5.0" prefHeight="129.0" prefWidth="128.0" />
-      <VBox fx:id="scoreboardScoresVBox" layoutX="596.0" layoutY="5.0" prefHeight="129.0" prefWidth="42.0" />
+      <HBox fx:id="playerCardsBox" layoutX="146.0" layoutY="343.0" prefHeight="89.0" prefWidth="346.0" />
+      <ImageView fx:id="playerPlayedCardView" fitHeight="129.0" fitWidth="80.0" layoutX="279.0" layoutY="214.0" pickOnBounds="true" preserveRatio="true" />
+      <ImageView fx:id="otherPlayedCardView1" fitHeight="129.0" fitWidth="80.0" layoutX="190.0" layoutY="176.0" pickOnBounds="true" preserveRatio="true" />
+      <ImageView fx:id="otherPlayedCardView2" fitHeight="129.0" fitWidth="80.0" layoutX="279.0" layoutY="53.0" pickOnBounds="true" preserveRatio="true" />
+      <ImageView fx:id="otherPlayedCardView3" fitHeight="129.0" fitWidth="80.0" layoutX="371.0" layoutY="176.0" pickOnBounds="true" preserveRatio="true" />
+      <VBox fx:id="scoreboardNamesVBox" layoutX="442.0" layoutY="33.0" prefHeight="103.0" prefWidth="128.0" />
+      <VBox fx:id="scoreboardScoresVBox" layoutX="579.0" layoutY="33.0" prefHeight="103.0" prefWidth="42.0" />
       <Label fx:id="roundLabel" layoutX="32.0" layoutY="22.0" text="Round:">
          <font>
-            <Font size="14.0" />
+            <Font name="System Bold" size="12.0" />
          </font>
       </Label>
-      <Pane fx:id="winnerPane" layoutX="191.0" layoutY="163.0" prefHeight="152.0" prefWidth="259.0">
+      <Pane fx:id="winnerPane" layoutX="190.0" layoutY="138.0" prefHeight="152.0" prefWidth="259.0">
          <children>
-            <Label fx:id="winnerLabel" alignment="CENTER" layoutX="4.0" layoutY="47.0" prefHeight="43.0" prefWidth="251.0" text="Winner">
+            <Label fx:id="winnerLabel" alignment="CENTER" layoutX="4.0" layoutY="33.0" prefHeight="43.0" prefWidth="251.0" text="Winner">
                <font>
                   <Font size="24.0" />
                </font>
@@ -41,5 +50,7 @@
             <Button layoutX="97.0" layoutY="104.0" mnemonicParsing="false" onAction="#exit" prefHeight="25.0" prefWidth="65.0" text="Exit" />
          </children>
       </Pane>
+      <Label layoutX="483.0" layoutY="13.0" text="Players" />
+      <Label layoutX="578.0" layoutY="13.0" text="Scores" />
    </children>
 </AnchorPane>
