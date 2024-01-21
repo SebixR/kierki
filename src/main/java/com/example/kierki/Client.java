@@ -18,6 +18,7 @@ import java.util.Map;
 public class Client {
     private Socket clientSocket = null;
     private int clientId;
+    private String username = null;
     private int currentRoomId = 0;
     private List<Card> cardsInHand = new ArrayList<>();
     private HashMap<Integer, Room> rooms;
@@ -25,21 +26,32 @@ public class Client {
     private ObjectInputStream in = null;
 
     private Stage primaryStage;
+    private UsernameController usernameController;
     private RoomsController roomsController;
+    private FXMLLoader roomsLoader;
     private WaitingController waitingController;
     private FXMLLoader waitingLoader;
     private GameController gameController;
     private FXMLLoader gameLoader;
+    private Scene roomsScene;
+    private Scene waitingScene;
+    private Scene gameScene;
 
-    public Client(Socket socket, Stage primaryStage, RoomsController roomsController, WaitingController waitingController, FXMLLoader waitingLoader, GameController gameController, FXMLLoader gameLoader){
+    public Client(Socket socket, Stage primaryStage,  UsernameController usernameController, RoomsController roomsController, FXMLLoader roomsLoader, WaitingController waitingController, FXMLLoader waitingLoader, GameController gameController, FXMLLoader gameLoader){
         try {
             this.clientSocket = socket;
             this.primaryStage = primaryStage;
+            this.usernameController = usernameController;
             this.roomsController = roomsController;
+            this.roomsLoader = roomsLoader;
             this.waitingController = waitingController;
             this.waitingLoader = waitingLoader;
             this.gameController = gameController;
             this.gameLoader = gameLoader;
+
+            this.roomsScene = new Scene(roomsLoader.getRoot());
+            this.waitingScene = new Scene(waitingLoader.getRoot());
+            this.gameScene = new Scene(gameLoader.getRoot());
 
             this.out = new ObjectOutputStream(clientSocket.getOutputStream());
             this.in = new ObjectInputStream(clientSocket.getInputStream());
@@ -48,8 +60,8 @@ public class Client {
         }
     }
 
-    public void receiveID() throws IOException {
-        clientId = in.readInt();
+    public void receiveID() throws IOException, ClassNotFoundException {
+        clientId = (int) in.readObject();
     }
 
     public void receiveRooms() throws IOException, ClassNotFoundException {
@@ -60,6 +72,13 @@ public class Client {
         }
     }
 
+    public void requestUsername(String username) throws IOException {
+        out.reset();
+        out.writeObject(Request.REQUEST_USERNAME);
+        out.writeObject(username);
+        out.flush();
+    }
+
     public void requestRoomAdd() throws IOException {
         out.reset();
         out.writeObject(Request.CREATE_ROOM);
@@ -67,8 +86,7 @@ public class Client {
     }
 
     public void joinCreatedRoom() {
-        Scene gameScene = new Scene(waitingLoader.getRoot());
-        primaryStage.setScene(gameScene);
+        primaryStage.setScene(waitingScene);
     }
 
     public void joinExistingRoom(int roomId) throws IOException {
@@ -83,9 +101,8 @@ public class Client {
         out.writeObject(Request.DEAL_CARDS);
         out.writeObject(currentRoomId);
 
-        gameController.setLabels(rooms.get(currentRoomId).getConnectedPlayers());
+        gameController.setLabels(rooms.get(currentRoomId).getConnectedPlayers(), rooms.get(currentRoomId).getConnectedPlayersNames());
 
-        Scene gameScene = new Scene(gameLoader.getRoot());
         primaryStage.setScene(gameScene);
     }
 
@@ -109,6 +126,10 @@ public class Client {
         System.out.println("Invited: " + playerId);
     }
 
+    public void exitGame() throws IOException {
+        out.writeObject(Request.EXIT_GAME);
+    }
+
     // turn the individual if's into methods
     public void listen(){
         new Thread(() -> {
@@ -117,6 +138,25 @@ public class Client {
                 try {
                     Response response = (Response) in.readObject();
 
+                    if (response == Response.SET_USERNAME) {
+                        boolean usernameSet = (boolean) in.readObject();
+
+                        if (usernameSet) {
+                            this.username = (String) in.readObject();
+                            receiveRooms();
+                            System.out.println("Available rooms:");
+                            for (Map.Entry<Integer, Room> entry : rooms.entrySet()) {
+                                System.out.println("Id: " + entry.getValue().getRoomId() + " players: " + entry.getValue().getPlayerAmount() + "/4\n");
+                            }
+
+                            Platform.runLater(() -> {
+                                primaryStage.setScene(roomsScene);
+                            });
+                        }
+                        else {
+                            Platform.runLater(() -> usernameController.showErrorLabel());
+                        }
+                    }
                     if (response == Response.ROOMS_UPDATE) {
                         Room room = (Room) in.readObject();
                         int roomId = room.getRoomId();
@@ -133,12 +173,13 @@ public class Client {
                             if (currentRoomId == room.getRoomId())
                             {
                                 waitingController.getConnectedPlayersVBox().getChildren().clear();
-                                for (int player : room.getConnectedPlayers()) {
-                                    waitingController.addPlayerLabel(String.valueOf(player));
+                                for (int i = 0; i < room.getPlayerAmount(); i++) {
+                                    waitingController.addPlayerLabel(room.getConnectedPlayersNames().get(i));
                                 }
 
                                 if (room.isFull()) {
                                     try {
+                                        gameController.clear();
                                         startGame();
                                     } catch (IOException e) {
                                         throw new RuntimeException(e);
@@ -152,7 +193,7 @@ public class Client {
                     else if (response == Response.ROOM_CREATED) {
                         Room room = (Room) in.readObject();
 
-                        Platform.runLater(() -> waitingController.addPlayerLabel(String.valueOf(clientId)));
+                        Platform.runLater(() -> waitingController.addPlayerLabel(username));
 
                         currentRoomId = room.getRoomId();
                         rooms.put(room.getRoomId(), room);
@@ -192,18 +233,18 @@ public class Client {
                         rooms.put(room.getRoomId(), room); //won't add a new one if the key's already there
 
                         Platform.runLater(() -> {
-                            Scene gameScene = new Scene(waitingLoader.getRoot());
-                            primaryStage.setScene(gameScene);
-                            waitingController.addPlayerLabel(String.valueOf(this.clientId));
+                            primaryStage.setScene(waitingScene);
+                            waitingController.addPlayerLabel(this.username);
                             waitingController.hideInvitePane();
 
                             waitingController.getConnectedPlayersVBox().getChildren().clear();
-                            for (int player : room.getConnectedPlayers()) {
-                                waitingController.addPlayerLabel(String.valueOf(player));
+                            for (int i = 0; i < room.getPlayerAmount(); i++) {
+                                waitingController.addPlayerLabel(room.getConnectedPlayersNames().get(i));
                             }
 
                             if (room.isFull()) {
                                 try {
+                                    gameController.clear();
                                     startGame();
                                 } catch (IOException e) {
                                     throw new RuntimeException(e);
@@ -270,9 +311,16 @@ public class Client {
                         Platform.runLater(() -> gameController.updateRound(room.getCurrentRound()));
                     }
                     else if (response == Response.GAME_OVER) {
-                        int winnerId = (int) in.readObject();
+                        String winnerName = (String) in.readObject();
+                        Room room = (Room) in.readObject();
 
-                        Platform.runLater(() -> gameController.showWinner(winnerId));
+                        rooms.remove(room.getRoomId());
+
+                        Platform.runLater(() -> {
+                            gameController.showWinner(winnerName);
+                            waitingController.clearLabels();
+                            roomsController.removeRoomButton(room.getRoomId());
+                        });
                     }
 
                 } catch (Exception e) {
@@ -297,6 +345,10 @@ public class Client {
         return index;
     }
 
+    public void disconnectClient() throws IOException {
+        out.writeObject(Request.DISCONNECT);
+        out.writeObject(currentRoomId);
+    }
 
     public void closeEverything() {
         try {
@@ -320,13 +372,22 @@ public class Client {
     public List<Card> getCardsInHand() {
         return this.cardsInHand;
     }
-
     public Integer getClientId() {
         return clientId;
     }
-
-    public HashMap<Integer, Room> getRooms() {
-        return rooms;
+    public String getUsername() {
+        return this.username;
     }
-
+    public Stage getPrimaryStage() {
+        return this.primaryStage;
+    }
+    public FXMLLoader getRoomsLoader() {
+        return roomsLoader;
+    }
+    public Scene getRoomsScene() {
+        return this.roomsScene;
+    }
+    public void setRoomsController(RoomsController roomsController) {
+        this.roomsController = roomsController;
+    }
 }

@@ -1,6 +1,7 @@
 package com.example.kierki;
 
 public enum Response {
+    SET_USERNAME,
     ROOMS_UPDATE,
     INVITATION,
     JOINED_ROOM,

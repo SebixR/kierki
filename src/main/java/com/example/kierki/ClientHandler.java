@@ -13,12 +13,13 @@ public class ClientHandler implements Runnable {
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
     private int clientId; //given by the server
+    private static HashMap<Integer, String> usernames = new HashMap<>();
+    private boolean loggedIn = false;
     private boolean isInGame = false;
     private static final int CARDS_IN_DECK = 52;
     private static final int CARDS_IN_HAND = 13;
 
-    public ClientHandler(Socket socket, int clientId){
-
+    public ClientHandler(Socket socket, int clientId) {
         try {
             this.socket = socket;
             this.out = new ObjectOutputStream(socket.getOutputStream());
@@ -36,8 +37,7 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            out.writeInt(clientId);
-            out.writeObject(rooms);
+            out.writeObject(clientId);
         } catch (IOException e) {
             closeEverything(socket, in, out);
         }
@@ -46,9 +46,28 @@ public class ClientHandler implements Runnable {
             try {
                 Request request = (Request) in.readObject();
 
-                if (request == Request.CREATE_ROOM)
+                if (request == Request.REQUEST_USERNAME) {
+                    String username = (String) in.readObject();
+
+                    out.reset();
+                    if (!usernames.containsValue(username)) {
+                        addUsername(username);
+                        this.loggedIn = true;
+                        out.writeObject(Response.SET_USERNAME);
+                        out.writeObject(true);
+                        out.writeObject(username);
+                        out.writeObject(rooms);
+                    }
+                    else
+                    {
+                        out.writeObject(Response.SET_USERNAME);
+                        out.writeObject(false);
+                    }
+                    out.flush();
+                }
+                else if (request == Request.CREATE_ROOM)
                 {
-                    Room room = new Room(clientId, serverRoomId);
+                    Room room = new Room(clientId, serverRoomId, usernames.get(this.clientId));
                     isInGame = true;
                     addRoom(serverRoomId, room);
                     serverRoomId++;
@@ -59,7 +78,6 @@ public class ClientHandler implements Runnable {
                     out.flush();
 
                     broadcastRooms(room);
-
                 }
                 else if (request == Request.INVITE_PLAYER)
                 {
@@ -144,16 +162,10 @@ public class ClientHandler implements Runnable {
                             if (remainingCards == 0) {
 
                                 if (rooms.get(roomId).getCurrentRound() == 7) {
-                                    int winnerId = 0;
-                                    int minimumPoints = Integer.MAX_VALUE;
-                                    for (Integer client : rooms.get(roomId).getConnectedPlayers()) {
-                                        if (rooms.get(roomId).getPlayerPoints().get(client) <= minimumPoints) {
-                                            minimumPoints = rooms.get(roomId).getPlayerPoints().get(client);
-                                            winnerId = client;
-                                        }
-                                    }
-
-                                    broadcastVictory(winnerId);
+                                    int winnerId = findWinner(roomId);
+                                    String winnerName = usernames.get(winnerId);
+                                    endGame(roomId);
+                                    broadcastVictory(rooms.get(roomId), winnerName);
                                 }
                                 else {
                                     changeRound(roomId);
@@ -161,6 +173,24 @@ public class ClientHandler implements Runnable {
                                 }
                             }
                         }
+                    }
+                }
+                else if (request == Request.EXIT_GAME) {
+                    isInGame = false;
+                }
+                else if (request == Request.DISCONNECT) {
+                    int roomId = (int) in.readObject();
+
+                    if (!rooms.get(roomId).getGameOver()) {
+                        int winnerId = findWinner(roomId);
+                        String winnerName = usernames.get(winnerId);
+                        endGame(roomId);
+
+                        closeEverything(socket, in, out);
+                        broadcastVictory(rooms.get(roomId), winnerName);
+                        removeRoom(roomId);
+
+                        break;
                     }
                 }
 
@@ -172,6 +202,10 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    public synchronized void addUsername(String username) {
+        usernames.put(this.clientId, username);
+    }
+
     /**
      * Broadcasts a newly created, or updated room to all clients
      * @param room the new room
@@ -179,7 +213,7 @@ public class ClientHandler implements Runnable {
     public synchronized void broadcastRooms(Room room){
         for (ClientHandler handler : clientHandlers){
             try {
-                if (handler != this)
+                if (handler != this && handler.loggedIn)
                 {
                     handler.out.reset();
                     handler.out.writeObject(Response.ROOMS_UPDATE);
@@ -193,14 +227,14 @@ public class ClientHandler implements Runnable {
     }
 
     /**
-     * Broadcasts the changes caused by a player playing a card
+     * Broadcasts the changes caused by a player playing a card, to all players in the rooom
      * @param room room with updated deck and turn
      * @param playedCard the played card, for making updating the GUI easier
      */
     public synchronized void broadcastPlay(Room room, Card playedCard){
         for (ClientHandler handler : clientHandlers){
             try {
-                if (handler != this)
+                if (handler != this && room.getConnectedPlayers().contains(handler.clientId))
                 {
                     handler.out.reset();
                     handler.out.writeObject(Response.CARDS_UPDATE);
@@ -215,20 +249,22 @@ public class ClientHandler implements Runnable {
     }
 
     /**
-     * Broadcasts information at the end of a turn
+     * Broadcasts information at the end of a turn, to all players in the room
      * @param points the amount of points received by one player
      * @param clientId the player who receives the points
      * @param room the updated room, ready for the next turn
      */
     public synchronized void broadcastPoints(int points, int clientId, Room room) {
-        for (ClientHandler handler : clientHandlers){
+        for (ClientHandler handler : clientHandlers ){
             try {
-                handler.out.reset();
-                handler.out.writeObject(Response.TURN_OVER);
-                handler.out.writeObject(clientId);
-                handler.out.writeObject(points);
-                handler.out.writeObject(room);
-                handler.out.flush();
+                if (room.getConnectedPlayers().contains(handler.clientId)) {
+                    handler.out.reset();
+                    handler.out.writeObject(Response.TURN_OVER);
+                    handler.out.writeObject(clientId);
+                    handler.out.writeObject(points);
+                    handler.out.writeObject(room);
+                    handler.out.flush();
+                }
             } catch (IOException e){
                 closeEverything(socket, in, out);
             }
@@ -236,29 +272,39 @@ public class ClientHandler implements Runnable {
     }
 
     /**
-     * Informs all the players that the round is over, and thus a new one started
+     * Informs all the players in the room that the round is over, and thus a new one started
      * @param room the updated room, ready for the next round
      */
     public synchronized void broadcastRoundChange(Room room) {
         for (ClientHandler handler : clientHandlers){
             try {
-                handler.out.reset();
-                handler.out.writeObject(Response.ROUND_OVER);
-                handler.out.writeObject(room);
-                handler.out.flush();
+                if (room.getConnectedPlayers().contains(handler.clientId)) {
+                    handler.out.reset();
+                    handler.out.writeObject(Response.ROUND_OVER);
+                    handler.out.writeObject(room);
+                    handler.out.flush();
+                }
             } catch (IOException e){
                 closeEverything(socket, in, out);
             }
         }
     }
 
-    public synchronized void broadcastVictory(int winnerId) { //TODO username not ID
+    /**
+     * Informs all the players in the room that the game ended, and who is the winner
+     * @param room the room in which the game ended
+     * @param winnerName the winner
+     */
+    public synchronized void broadcastVictory(Room room, String winnerName) { //TODO username not ID
         for (ClientHandler handler : clientHandlers){
             try {
-                handler.out.reset();
-                handler.out.writeObject(Response.GAME_OVER);
-                handler.out.writeObject(winnerId);
-                handler.out.flush();
+                if (room.getConnectedPlayers().contains(handler.clientId)) {
+                    handler.out.reset();
+                    handler.out.writeObject(Response.GAME_OVER);
+                    handler.out.writeObject(winnerName);
+                    handler.out.writeObject(room);
+                    handler.out.flush();
+                }
             } catch (IOException e){
                 closeEverything(socket, in, out);
             }
@@ -273,7 +319,7 @@ public class ClientHandler implements Runnable {
     public synchronized void updateRoom(int roomId, int clientId) {
         if (!rooms.get(roomId).isFull())
         {
-            rooms.get(roomId).addPlayer(clientId); //already sets the isFull field accordingly
+            rooms.get(roomId).addPlayer(clientId, usernames.get(clientId)); //already sets the isFull field accordingly
         }
     }
 
@@ -311,7 +357,7 @@ public class ClientHandler implements Runnable {
         {
             if (rooms.get(roomId).getCards().get(i).getClientId() == 0) {
                 rooms.get(roomId).getCards().get(i).setClientId(this.clientId);
-                System.out.println("Card: " + rooms.get(roomId).getCards().get(i).getValue() + " suit: " + rooms.get(roomId).getCards().get(i).getSuit());
+                //System.out.println("Card: " + rooms.get(roomId).getCards().get(i).getValue() + " suit: " + rooms.get(roomId).getCards().get(i).getSuit());
                 counter++;
             }
         }
@@ -522,6 +568,26 @@ public class ClientHandler implements Runnable {
             }
         }
         return takerClientId;
+    }
+
+    public int findWinner(int roomId) {
+        int winnerId = 0;
+        int minimumPoints = Integer.MAX_VALUE;
+        for (Integer client : rooms.get(roomId).getConnectedPlayers()) {
+            if (rooms.get(roomId).getPlayerPoints().get(client) <= minimumPoints) {
+                minimumPoints = rooms.get(roomId).getPlayerPoints().get(client);
+                winnerId = client;
+            }
+        }
+        return winnerId;
+    }
+
+    public synchronized void endGame(int roomId) {
+        rooms.get(roomId).toggleGameOver();
+    }
+
+    public synchronized void removeRoom(int roomId) {
+        rooms.remove(roomId);
     }
 
     /**

@@ -10,6 +10,7 @@ public class Room implements Serializable {
     private final int roomId;
     private final int hostId;
     private final List<Integer> connectedPlayers = new ArrayList<>();
+    private List<String> connectedPlayersNames = new ArrayList<>();
     private final HashMap<Integer, Integer> playerPoints = new HashMap<>(); //key - clientId, value - points
     private boolean isFull;
     private List<Card> cards;
@@ -18,14 +19,16 @@ public class Room implements Serializable {
     private int currentTurn;
     private int currentRound;
     private int turnCounter = 1;
+    private boolean gameOver = false;
 
-    public Room(int hostId, int roomId){
+    public Room(int hostId, int roomId, String username){
         this.hostId = hostId;
         this.roomId = roomId;
         this.isFull = false;
-        this.currentTurn = hostId; //the host starts the game (technically the person on the LEFT of the host should start)
+        this.currentTurn = hostId;
         this.currentRound = 7;
         connectedPlayers.add(hostId);
+        connectedPlayersNames.add(username);
 
         initializeDeck();
     }
@@ -48,12 +51,13 @@ public class Room implements Serializable {
      * Sets the isFull parameter, and initializes the hashMap containing players' points
      * @param playerId the player to add
      */
-    public void addPlayer(int playerId){
+    public void addPlayer(int playerId, String username){
         int index = 0;
         while (index < connectedPlayers.size() && connectedPlayers.get(index) < playerId) {
             index++;
         }
         connectedPlayers.add(index, playerId);
+        connectedPlayersNames.add(index, username);
 
         if (connectedPlayers.size() == 4){
             isFull = true;
@@ -95,6 +99,10 @@ public class Room implements Serializable {
      */
     public void incrementTurnCounter() {
         this.turnCounter++;
+    }
+
+    public void toggleGameOver() {
+        this.gameOver = !this.gameOver;
     }
 
     public void incrementCurrentRound() {
@@ -149,6 +157,14 @@ public class Room implements Serializable {
 
     public HashMap<Integer, Integer> getPlayerPoints() {
         return playerPoints;
+    }
+
+    public boolean getGameOver() {
+        return this.gameOver;
+    }
+
+    public List<String> getConnectedPlayersNames() {
+        return connectedPlayersNames;
     }
 
     public void setFull(){

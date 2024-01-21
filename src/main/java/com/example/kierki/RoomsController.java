@@ -60,6 +60,15 @@ public class RoomsController {
         }
     }
 
+    public void removeRoomButton(int roomId) {
+        if (roomButtons.get(roomId) != null) {
+            Platform.runLater(() -> {
+                availableRoomsList.getChildren().remove(roomButtons.get(roomId));
+                roomButtons.remove(roomId);
+            });
+        }
+    }
+
     public void setClient(Client client) {
         this.client = client;
     }

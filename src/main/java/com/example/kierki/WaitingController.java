@@ -36,6 +36,10 @@ public class WaitingController {
         connectedPlayersVBox.getChildren().add(playerName);
     }
 
+    public void clearLabels() {
+        connectedPlayersVBox.getChildren().clear();
+    }
+
     public void hideInvitePane() {
         invitePane.setVisible(false);
     }

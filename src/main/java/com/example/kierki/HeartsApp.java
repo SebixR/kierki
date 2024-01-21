@@ -10,11 +10,16 @@ import java.net.Socket;
 import java.util.Map;
 
 public class HeartsApp extends Application {
+    private Client client;
 
     @Override
     public void start(Stage primaryStage) throws IOException, ClassNotFoundException {
+        FXMLLoader usernameLoader = new FXMLLoader(getClass().getResource("username.fxml"));
+        Scene usernameScene = new Scene(usernameLoader.load());
+        UsernameController usernameController = usernameLoader.getController();
+
         FXMLLoader roomsLoader = new FXMLLoader(getClass().getResource("main.fxml"));
-        Scene roomsScene = new Scene(roomsLoader.load());
+        roomsLoader.load();
         RoomsController roomsController = roomsLoader.getController();
 
         FXMLLoader waitingLoader = new FXMLLoader(getClass().getResource("waiting.fxml"));
@@ -26,32 +31,39 @@ public class HeartsApp extends Application {
         GameController gameController = gameLoader.getController();
 
         Socket socket = new Socket("127.0.0.1", 6666);
-        Client client = new Client(socket, primaryStage, roomsController, waitingController, waitingLoader, gameController, gameLoader);
+        client = new Client(socket, primaryStage, usernameController, roomsController, roomsLoader, waitingController, waitingLoader, gameController, gameLoader);
         client.receiveID();
         System.out.println("Connected client " + client.getClientId());
-
-        client.receiveRooms();
-        System.out.println("Available rooms:");
-
-        for (Map.Entry<Integer, Room> entry : client.getRooms().entrySet()) {
-            System.out.println("Id: " + entry.getValue().getRoomId() + " players: " + entry.getValue().getPlayerAmount() + "/4\n");
-        }
         client.listen();
 
+        usernameController.setClient(client);
         roomsController.setClient(client);
         waitingController.setClient(client);
         gameController.setClient(client);
 
-        primaryStage.setScene(roomsScene);
+        usernameController.hideErrorLabel();
+
+        primaryStage.setScene(usernameScene);
         primaryStage.setTitle("Hearts");
         primaryStage.show();
+    }
+
+    @Override
+    public void stop() {
+        try {
+            client.disconnectClient();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Failed to notify the server when disconnecting");
+            System.exit(2);
+        }
+        client.closeEverything();
     }
 
     public static void main(String[] args) {
         try {
             launch(args);
 
-            //client.closeEverything();
             System.exit(0);
         } catch (Exception e) {
             e.printStackTrace();

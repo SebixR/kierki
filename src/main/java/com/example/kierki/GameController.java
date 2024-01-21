@@ -1,13 +1,12 @@
 package com.example.kierki;
 
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.scene.text.Font;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,7 +18,6 @@ public class GameController {
 
     private Client client;
     private final HashMap<Integer, ImageView> cardsOnScreen = new HashMap<>();
-    private int round;
     private final List<Integer> otherPlayerIds = new ArrayList<>();
     private final HashMap<Integer, Label> scoreboardScoreLabels = new HashMap<>();
     @FXML
@@ -50,18 +48,16 @@ public class GameController {
     private Pane winnerPane;
     @FXML
     private Label winnerLabel;
-    @FXML
-    private Button exitButton;
     private int cardsOffset = -25;
 
     /**
      * Sets all the player's username labels, and initializes the scoreboard
      * @param players a list of the players' id's
      */
-    public void setLabels(List<Integer> players) {
+    public void setLabels(List<Integer> players, List<String> names) {
         winnerPane.setVisible(false);
 
-        currentPlayerLabel.setText(String.valueOf(client.getClientId()));
+        currentPlayerLabel.setText(client.getUsername());
         scoreboardScoreLabels.put(client.getClientId(), new Label("0"));
         int playerIndex = players.indexOf(client.getClientId());
 
@@ -73,9 +69,9 @@ public class GameController {
                 otherPlayerIds.add(players.get(i));
                 scoreboardScoreLabels.put(players.get(i), new Label("0"));
 
-                if (counter == 0) otherPlayerLabel1.setText(String.valueOf(players.get(i)));
-                else if (counter == 1) otherPlayerLabel2.setText(String.valueOf(players.get(i)));
-                else if (counter == 2) otherPlayerLabel3.setText(String.valueOf(players.get(i)));
+                if (counter == 0) otherPlayerLabel1.setText(names.get(i));
+                else if (counter == 1) otherPlayerLabel2.setText(names.get(i));
+                else if (counter == 2) otherPlayerLabel3.setText(names.get(i));
                 counter++;
             }
         }
@@ -178,13 +174,33 @@ public class GameController {
     }
 
     public void updateRound(int round) {
-        this.round = round;
         roundLabel.setText("Round: " + round);
     }
 
-    public void showWinner(int winnerId) {
-        winnerLabel.setText("Winner: " + winnerId + "!");
+    public void showWinner(String winnerName) {
+        winnerLabel.setText("Winner: " + winnerName + "!");
         winnerPane.setVisible(true);
+    }
+
+    @FXML
+    public void exit() throws IOException {
+        client.exitGame();
+
+        client.getPrimaryStage().setScene(client.getRoomsScene());
+    }
+
+    public void clear() {
+        cardsOnScreen.clear();
+        otherPlayerIds.clear();
+        scoreboardScoreLabels.clear();
+        playerPlayedCardView.setImage(null);
+        otherPlayedCardView1.setImage(null);
+        otherPlayedCardView2.setImage(null);
+        otherPlayedCardView3.setImage(null);
+        scoreboardNamesVBox.getChildren().clear();
+        scoreboardScoresVBox.getChildren().clear();
+        winnerPane.setVisible(false);
+        playerCardsBox.getChildren().clear();
     }
 
     /**
