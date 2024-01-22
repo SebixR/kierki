@@ -2,8 +2,6 @@ package com.example.kierki;
 
 import javafx.fxml.FXML;
 import javafx.scene.Cursor;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -16,6 +14,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * The GameController class is responsible for generating, and updating the game scene.
+ * <p>
+ *     It contains a Client object, so that the client can call methods using the GUI.
+ *     It also houses all FXML objects, which connect to the fx IDs in the game.fxml file.
+ * </p>
+ */
 public class GameController {
 
     private Client client;
@@ -53,6 +58,10 @@ public class GameController {
     @FXML
     private AnchorPane gameAnchorPane;
 
+    /**
+     * Stylizes the game scene. It is used right after the game scene is created. The same
+     * effect could also be achieved using a CSS stylesheet.
+     */
     public void stylize() {
         gameAnchorPane.setStyle("-fx-background-color: radial-gradient(center 50% 50%, radius 100%, #b7b7b7, #f1f1f1);");
 

@@ -5,6 +5,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+/**
+ * The Room class holds most of the information about an ongoing game and its players.
+ * <p>
+ *     This class stores a list of IDs of clients who are currently in the room, a list of their names
+ *     in the same order as the IDs, as well as a HashMap where the keys are clients' IDs, and the
+ *     values are the amounts of points they currently have.
+ * </p>
+ * <p>
+ *     The Room class is also responsible for initializing and storing the deck of cards used in throughout
+ *     the game, and various information ion the current state of the game, like whose turn is is to play
+ *     a card, how many turns have passed, which round it is, and what card was the first one placed on the
+ *     table.
+ * </p>
+ */
 public class Room implements Serializable {
 
     private final int roomId;
@@ -21,6 +35,12 @@ public class Room implements Serializable {
     private int turnCounter = 1;
     private boolean gameOver = false;
 
+    /**
+     * Room class constructor.
+     * @param hostId the ID of the player who created the room.
+     * @param roomId a unique ID given by the server.
+     * @param username the username of the host, to be put in the list of usernames.
+     */
     public Room(int hostId, int roomId, String username){
         this.hostId = hostId;
         this.roomId = roomId;
@@ -33,6 +53,10 @@ public class Room implements Serializable {
         initializeDeck();
     }
 
+    /**
+     * Initializes a deck of cards. It creates 52 cards in total, and assigns them values
+     * and suits.
+     */
     public void initializeDeck() {
         cards = new ArrayList<>();
 
@@ -47,9 +71,10 @@ public class Room implements Serializable {
     }
 
     /**
-     * Adds a new client to the room, always in ascending order
-     * Sets the isFull parameter, and initializes the hashMap containing players' points
-     * @param playerId the player to add
+     * Adds a new client to the room, always in ascending order, as to determine the order of turns
+     * and simplify generating the GUI correctly.
+     * Sets the isFull parameter, and initializes the hashMap containing players' points.
+     * @param playerId the ID of the player to add.
      */
     public void addPlayer(int playerId, String username){
         int index = 0;
@@ -68,9 +93,9 @@ public class Room implements Serializable {
     }
 
     /**
-     * Updates the player's amount of points
-     * @param clientId the player whose points will be updated
-     * @param points the amount of received points
+     * Updates the player's amount of points.
+     * @param clientId the player whose points will be updated.
+     * @param points the amount of received points.
      */
     public void givePoints(int clientId, int points) {
         int currentPoints = playerPoints.get(clientId);
@@ -78,7 +103,7 @@ public class Room implements Serializable {
     }
 
     /**
-     * Update whose turn is it to play. The turn order is dictated by ids, not the order the players joined
+     * Updates whose turn is it to play. The turn order is dictated by ids, not the order the players joined.
      */
     public void changeTurn() {
         int index = connectedPlayers.indexOf(currentTurn);
@@ -167,14 +192,7 @@ public class Room implements Serializable {
         return connectedPlayersNames;
     }
 
-    public void setFull(){
-        isFull = true;
-    }
     public void setFirstCardOnTable(Card card) {
         this.firstCardOnTable = card;
-    }
-
-    public void incrementRound() {
-        this.currentRound++;
     }
 }

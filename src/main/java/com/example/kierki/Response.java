@@ -1,5 +1,8 @@
 package com.example.kierki;
 
+/**
+ * Enum containing all the responses the server can send to the client.
+ */
 public enum Response {
     SET_USERNAME,
     ROOMS_UPDATE,

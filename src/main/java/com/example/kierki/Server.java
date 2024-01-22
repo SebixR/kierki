@@ -3,10 +3,11 @@ package com.example.kierki;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 
-
+/**
+ * The Server class is responsible for accepting clients, assigning them unique IDs, and creating
+ * new instances of the ClientHandler class, which then handler all client-server communication.
+ */
 public class Server {
     private final ServerSocket serverSocket;
     private int clientIds = 1;
@@ -16,9 +17,8 @@ public class Server {
     }
 
     /**
-     * Serwer cały czas czeka na klientów.
-     * Gdy klient się pojawi, tworzy połączenie oraz rozpoczyna dla niego nowy wątek za pomocą obiektu
-     * ClientHandler().
+     * The server is constantly listening for new clients. When a client appears, it creates
+     * a new instance of the ClientHandler class, responsible for all client-server communication.
      */
     public void startServer()
     {
@@ -41,7 +41,7 @@ public class Server {
     }
 
     /**
-     * Zamknięcie serwera.
+     * Shuts down the server.
      */
     public void closeServerSocket(){
         try {
@@ -55,9 +55,6 @@ public class Server {
     }
 
 
-    /**
-     * Wywołanie wszystkich potrzebnych metod
-     */
     public static void main(String[] args) {
 
         try {

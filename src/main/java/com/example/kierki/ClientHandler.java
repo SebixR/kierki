@@ -4,7 +4,25 @@ import java.io.*;
 import java.net.Socket;
 import java.util.*;
 
-
+/**
+ * The ClientHandler class is responsible for all client-server communication.
+ * Each time the server encounters a new client, it creates a new instance of
+ * ClientHandler, which then establishes a connection with the client.
+ * <p>
+ *     The class holds a static list of all its other instances, so that it can broadcast information to all
+ *     other clients, as well as a static HashMap of all he open rooms, where the room's ID is the key,
+ *     and the room itself is the value. The Room object is where most game related information is stored,
+ *     but the ClientHandler class additionally knows whether the client is logged in, and currently
+ *     in game or not.
+ * </p>
+ * <p>
+ *     The property usernames is used to store client's usernames. The keys are clientIDs,
+ *     and the values are the usernames.
+ * </p>
+ * <p>
+ *     Each client's ID is given to them by the Server application.
+ * </p>
+ */
 public class ClientHandler implements Runnable {
     private static final List<ClientHandler> clientHandlers = new ArrayList<>();
     private static final HashMap<Integer, Room> rooms = new HashMap<>();
@@ -19,6 +37,11 @@ public class ClientHandler implements Runnable {
     private static final int CARDS_IN_DECK = 52;
     private static final int CARDS_IN_HAND = 13;
 
+    /**
+     * The class constructor.
+     * @param socket the socket accepted by the server.
+     * @param clientId a unique ID given by the server.
+     */
     public ClientHandler(Socket socket, int clientId) {
         try {
             this.socket = socket;
@@ -32,7 +55,8 @@ public class ClientHandler implements Runnable {
     }
 
     /**
-     * Handles all client-server communication
+     * Handles most of client-server communication by responding accordingly based
+     * on the received Request.
      */
     @Override
     public void run() {
@@ -47,162 +71,31 @@ public class ClientHandler implements Runnable {
                 Request request = (Request) in.readObject();
 
                 if (request == Request.REQUEST_USERNAME) {
-                    String username = (String) in.readObject();
-
-                    out.reset();
-                    if (!usernames.containsValue(username)) {
-                        addUsername(username);
-                        this.loggedIn = true;
-                        out.writeObject(Response.SET_USERNAME);
-                        out.writeObject(true);
-                        out.writeObject(username);
-                        out.writeObject(rooms);
-                    }
-                    else
-                    {
-                        out.writeObject(Response.SET_USERNAME);
-                        out.writeObject(false);
-                    }
-                    out.flush();
+                    handleRequestUsername();
                 }
                 else if (request == Request.CREATE_ROOM)
                 {
-                    Room room = new Room(clientId, serverRoomId, usernames.get(this.clientId));
-                    isInGame = true;
-                    addRoom(serverRoomId, room);
-                    serverRoomId++;
-
-                    out.reset();
-                    out.writeObject(Response.ROOM_CREATED);
-                    out.writeObject(room);
-                    out.flush();
-
-                    broadcastRooms(room);
+                    handleCreateRoom();
                 }
                 else if (request == Request.INVITE_PLAYER)
                 {
-                    String inviteName = (String) in.readObject(); //someone else's ID
-                    int inviteId = 0;
-                    for (Map.Entry<Integer, String> entry : usernames.entrySet()) {
-                        if (entry.getValue().equals(inviteName)) inviteId = entry.getKey();
-                    }
-
-                    if (this.clientId != inviteId)
-                    {
-                        for (ClientHandler handler : clientHandlers) {
-                            if (handler.clientId == inviteId && !handler.isInGame)
-                            {
-                                out.reset();
-                                handler.out.writeObject(Response.INVITATION);
-                                int foundRoomId = findRoom(this.clientId).getRoomId();
-                                Invitation invitation = new Invitation(this.clientId, foundRoomId, usernames.get(clientId));
-                                handler.out.writeObject(invitation);
-                                handler.out.flush();
-                                break;
-                            }
-                        }
-                    }
+                    handleInvitePlayer();
                 }
                 else if (request == Request.JOIN_ROOM)
                 {
-                    int roomId = in.readInt();
-
-                    if (!rooms.get(roomId).isFull()){
-                        updateRoom(roomId, this.clientId);
-                        Room room = rooms.get(roomId);
-                        broadcastRooms(room);
-                        isInGame = true;
-
-                        out.reset();
-                        out.writeObject(Response.JOINED_ROOM);
-                        out.writeObject(room);
-                        out.flush();
-                    }
+                    handleJoinRoom();
                 }
                 else if (request == Request.DEAL_CARDS) {
-                    int roomId = (int) in.readObject();
-
-                    dealCards(roomId);
-                    System.out.println("Dealt cards to player: " + this.clientId + " in room " + roomId);
-
-                    out.reset();
-                    out.writeObject(Response.DEALT_CARDS);
-                    for (int i = 0; i < CARDS_IN_DECK; i++)
-                    {
-                        if (rooms.get(roomId).getCards().get(i).getClientId() == this.clientId) {
-                            out.writeObject(rooms.get(roomId).getCards().get(i));
-                        }
-                    }
-                    out.flush();
+                    handleDealCards();
                 }
                 else if (request == Request.PLAY_CARD) {
-                    Card card = (Card) in.readObject();
-                    System.out.println("Client: " + this.clientId + " requested to play card: " + card.getValue() + " " + card.getSuit());
-                    int roomId = (int) in.readObject();
-
-                    if (validateMove(card, roomId)) {
-                        int cardIndex = playCard(roomId, card);
-
-                        out.reset();
-                        out.writeObject(Response.PLAYED_CARD);
-                        out.writeObject(rooms.get(roomId).getCards().get(cardIndex));
-                        out.writeObject(rooms.get(roomId));
-                        out.flush();
-
-                        broadcastPlay(rooms.get(roomId), card);
-
-                        if (rooms.get(roomId).getCardsOnTable().size() == 4) {
-                            int points = calculatePoints(roomId);
-                            int takerClientId = pickLoosingPlayer(roomId);
-
-                            endTurn(roomId, takerClientId, points);
-
-                            broadcastPoints(points, takerClientId, rooms.get(roomId));
-
-                            int remainingCards = 0;
-                            for (int i = 0; i < CARDS_IN_DECK; i++) {
-                                if (rooms.get(roomId).getCards().get(i).isInHand()) remainingCards++;
-                            }
-
-                            if (remainingCards == 0) {
-
-                                if (rooms.get(roomId).getCurrentRound() == 7) {
-                                    int winnerId = findWinner(roomId);
-                                    String winnerName = usernames.get(winnerId);
-                                    endGame(roomId);
-                                    broadcastVictory(rooms.get(roomId), winnerName);
-                                }
-                                else {
-                                    changeRound(roomId);
-                                    broadcastRoundChange(rooms.get(roomId));
-                                }
-                            }
-                        }
-                    }
+                    handlePlayCard();
                 }
                 else if (request == Request.EXIT_GAME) {
                     isInGame = false;
                 }
                 else if (request == Request.DISCONNECT) {
-                    int roomId = (int) in.readObject();
-                    usernames.remove(this.clientId);
-
-                    if (rooms.get(roomId) == null) {
-                        closeEverything(socket, in, out);
-                        break;
-                    }
-
-                    if (!rooms.get(roomId).getGameOver()) {
-                        int winnerId = findWinner(roomId);
-                        String winnerName = usernames.get(winnerId);
-                        endGame(roomId);
-
-                        closeEverything(socket, in, out);
-                        broadcastVictory(rooms.get(roomId), winnerName);
-                        removeRoom(roomId);
-
-                        break;
-                    }
+                    handleDisconnect();
                 }
 
             } catch (Exception e) {
@@ -213,6 +106,211 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    /**
+     * Handles a client request to set a username. Looks through the list of connected clients
+     * to check if the username is taken, if it is ends "false", if not "true" and then the username.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
+    private void handleRequestUsername() throws IOException, ClassNotFoundException {
+        String username = (String) in.readObject();
+
+        out.reset();
+        if (!usernames.containsValue(username)) {
+            addUsername(username);
+            this.loggedIn = true;
+            out.writeObject(Response.SET_USERNAME);
+            out.writeObject(true);
+            out.writeObject(username);
+            out.writeObject(rooms);
+        }
+        else
+        {
+            out.writeObject(Response.SET_USERNAME);
+            out.writeObject(false);
+        }
+        out.flush();
+    }
+
+    /**
+     * Handles the creation of a new room. After creating the room and setting all the necessary
+     * parameters it broadcasts the newly created room to all players except for the host.
+     * @throws IOException in/out communication exception
+     */
+    private void handleCreateRoom() throws IOException {
+        Room room = new Room(clientId, serverRoomId, usernames.get(this.clientId));
+        isInGame = true;
+        addRoom(serverRoomId, room);
+        serverRoomId++;
+
+        out.reset();
+        out.writeObject(Response.ROOM_CREATED);
+        out.writeObject(room);
+        out.flush();
+
+        broadcastRooms(room);
+    }
+
+    /**
+     * Handles invitations. When a client requests to invite another player, this function looks
+     * for the player in question, and forwards the invitation to the, in the form of the
+     * Invitation object.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
+    public void handleInvitePlayer() throws IOException, ClassNotFoundException {
+        String inviteName = (String) in.readObject(); //someone else's ID
+        int inviteId = 0;
+        for (Map.Entry<Integer, String> entry : usernames.entrySet()) {
+            if (entry.getValue().equals(inviteName)) inviteId = entry.getKey();
+        }
+
+        if (this.clientId != inviteId)
+        {
+            for (ClientHandler handler : clientHandlers) {
+                if (handler.clientId == inviteId && !handler.isInGame)
+                {
+                    out.reset();
+                    handler.out.writeObject(Response.INVITATION);
+                    int foundRoomId = findRoom(this.clientId).getRoomId();
+                    Invitation invitation = new Invitation(foundRoomId, usernames.get(clientId));
+                    handler.out.writeObject(invitation);
+                    handler.out.flush();
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Called when a player requests to join a room. If the room in question isn't full, adds the player
+     * to it, informs it that the request has been approved, and tells all the clients about the change in
+     * rooms.
+     * @throws IOException in/out communication exception
+     */
+    private void handleJoinRoom() throws IOException {
+        int roomId = in.readInt();
+
+        if (!rooms.get(roomId).isFull()){
+            updateRoom(roomId, this.clientId);
+            Room room = rooms.get(roomId);
+            broadcastRooms(room);
+            isInGame = true;
+
+            out.reset();
+            out.writeObject(Response.JOINED_ROOM);
+            out.writeObject(room);
+            out.flush();
+        }
+    }
+
+    /**
+     * Deals cards to the client connected to this instance of the class. To ensure the cards are dealt
+     * at random, the list of cards is first shuffled.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
+    private void handleDealCards() throws IOException, ClassNotFoundException {
+        int roomId = (int) in.readObject();
+
+        dealCards(roomId);
+        System.out.println("Dealt cards to player: " + this.clientId + " in room " + roomId);
+
+        out.reset();
+        out.writeObject(Response.DEALT_CARDS);
+        for (int i = 0; i < CARDS_IN_DECK; i++)
+        {
+            if (rooms.get(roomId).getCards().get(i).getClientId() == this.clientId) {
+                out.writeObject(rooms.get(roomId).getCards().get(i));
+            }
+        }
+        out.flush();
+    }
+
+    /**
+     * Handles all the events that may occur when a player plays a card. First, the method validates
+     * the move. If the player is allowed to play the card, it then broadcasts the newly played card to
+     * all the players in the room. If the played card is the fourth one on the table, the turn ends,
+     * and another one starts. If none of the cards in the deck are in game, it starts a new round. And
+     * if this was the final, 7th, round, it ends the game.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
+    private void handlePlayCard() throws IOException, ClassNotFoundException {
+        Card card = (Card) in.readObject();
+        System.out.println("Client: " + this.clientId + " requested to play card: " + card.getValue() + " " + card.getSuit());
+        int roomId = (int) in.readObject();
+
+        if (validateMove(card, roomId)) {
+            int cardIndex = playCard(roomId, card);
+
+            out.reset();
+            out.writeObject(Response.PLAYED_CARD);
+            out.writeObject(rooms.get(roomId).getCards().get(cardIndex));
+            out.writeObject(rooms.get(roomId));
+            out.flush();
+
+            broadcastPlay(rooms.get(roomId), card);
+
+            if (rooms.get(roomId).getCardsOnTable().size() == 4) {
+                int points = calculatePoints(roomId);
+                int takerClientId = pickLoosingPlayer(roomId);
+
+                endTurn(roomId, takerClientId, points);
+
+                broadcastPoints(points, takerClientId, rooms.get(roomId));
+
+                int remainingCards = 0;
+                for (int i = 0; i < CARDS_IN_DECK; i++) {
+                    if (rooms.get(roomId).getCards().get(i).isInHand()) remainingCards++;
+                }
+
+                if (remainingCards == 0) {
+
+                    if (rooms.get(roomId).getCurrentRound() == 7) {
+                        int winnerId = findWinner(roomId);
+                        String winnerName = usernames.get(winnerId);
+                        endGame(roomId);
+                        broadcastVictory(rooms.get(roomId), winnerName);
+                    }
+                    else {
+                        changeRound(roomId);
+                        broadcastRoundChange(rooms.get(roomId));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Called when a client closes their application. If a game was currently in progress,
+     * a winner is chosen based on the current scores and the game ends.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
+    private void handleDisconnect() throws IOException, ClassNotFoundException {
+        int roomId = (int) in.readObject();
+        usernames.remove(this.clientId);
+
+        if (rooms.get(roomId) == null) {
+            closeEverything(socket, in, out);
+        }
+
+        if (!rooms.get(roomId).getGameOver()) {
+            int winnerId = findWinner(roomId);
+            String winnerName = usernames.get(winnerId);
+            endGame(roomId);
+
+            closeEverything(socket, in, out);
+            broadcastVictory(rooms.get(roomId), winnerName);
+            removeRoom(roomId);
+        }
+    }
+
+    /**
+     * Adds a new user to a HashMap containing all the connected user's ID's and usernames.
+     * @param username the username this client chose, and the server accepted.
+     */
     public synchronized void addUsername(String username) {
         usernames.put(this.clientId, username);
     }
@@ -581,6 +679,11 @@ public class ClientHandler implements Runnable {
         return takerClientId;
     }
 
+    /**
+     * Finds the player with the minimum amount of points.
+     * @param roomId the room where the game just took place
+     * @return the ID of the client who won the game.
+     */
     public int findWinner(int roomId) {
         int winnerId = 0;
         int minimumPoints = Integer.MAX_VALUE;
@@ -597,6 +700,10 @@ public class ClientHandler implements Runnable {
         rooms.get(roomId).toggleGameOver();
     }
 
+    /**
+     * Removes a room after a game has ended.
+     * @param roomId the ID of the room being removed
+     */
     public synchronized void removeRoom(int roomId) {
         rooms.remove(roomId);
     }
@@ -608,6 +715,12 @@ public class ClientHandler implements Runnable {
         clientHandlers.remove(this);
     }
 
+    /**
+     * Severs all client-server connection.
+     * @param socket the socket accepted by the server.
+     * @param in input stream.
+     * @param out output stream.
+     */
     private void closeEverything(Socket socket, ObjectInputStream in, ObjectOutputStream out){
         removeClientHandler();
         try {

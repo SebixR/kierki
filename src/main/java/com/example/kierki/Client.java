@@ -14,13 +14,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+/***
+ * Class representing the client.
+ * <p>
+ *     The Client class is responsible for most client-server communication, and thus holds all the
+ *     information the client received. In addition it also has access to multiple javaFx loaders
+ *     and controllers, so that it can update the GUI, which in this case i the HeartsApp application.
+ * </p>
+ * <p>
+ *     The GUI's elements like loaders and scenes are only created once. Their contents are cleared
+ *     and generated anew whenever that is necessary.
+ * </p>
+ */
 public class Client {
     private Socket clientSocket = null;
     private int clientId;
     private String username = null;
     private int currentRoomId = 0;
-    private List<Card> cardsInHand = new ArrayList<>();
+    private final List<Card> cardsInHand = new ArrayList<>();
     private HashMap<Integer, Room> rooms;
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
@@ -28,26 +39,32 @@ public class Client {
     private Stage primaryStage;
     private UsernameController usernameController;
     private RoomsController roomsController;
-    private FXMLLoader roomsLoader;
     private WaitingController waitingController;
-    private FXMLLoader waitingLoader;
     private GameController gameController;
-    private FXMLLoader gameLoader;
     private Scene roomsScene;
     private Scene waitingScene;
     private Scene gameScene;
 
+    /**
+     * The Client class constructor.
+     * @param socket the socket used to communicate with the corresponding instance of ClientHandler
+     * @param primaryStage main javaFX stage, i.e. the application's main window
+     * @param usernameController javaFX controller for the login scene
+     * @param roomsController javaFX controller for the lobby scene
+     * @param roomsLoader javaFX loader for the lobby scene
+     * @param waitingController javaFX controller for the waiting for players scene
+     * @param waitingLoader javaFX loader for the waiting for players scene
+     * @param gameController javaFX controller for the game scene
+     * @param gameLoader javaFX loader for the game scene
+     */
     public Client(Socket socket, Stage primaryStage,  UsernameController usernameController, RoomsController roomsController, FXMLLoader roomsLoader, WaitingController waitingController, FXMLLoader waitingLoader, GameController gameController, FXMLLoader gameLoader){
         try {
             this.clientSocket = socket;
             this.primaryStage = primaryStage;
             this.usernameController = usernameController;
             this.roomsController = roomsController;
-            this.roomsLoader = roomsLoader;
             this.waitingController = waitingController;
-            this.waitingLoader = waitingLoader;
             this.gameController = gameController;
-            this.gameLoader = gameLoader;
 
             this.roomsScene = new Scene(roomsLoader.getRoot());
             this.waitingScene = new Scene(waitingLoader.getRoot());
@@ -60,10 +77,21 @@ public class Client {
         }
     }
 
+    /**
+     * The first method used by the client after establishing connection with the server.
+     * Used to get a unique ID, given by the server application.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     public void receiveID() throws IOException, ClassNotFoundException {
         clientId = (int) in.readObject();
     }
 
+    /**
+     * Method used by the client after logging in, responsible for receiving the currently open rooms.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     public void receiveRooms() throws IOException, ClassNotFoundException {
         rooms = (HashMap<Integer, Room>) in.readObject();
 
@@ -72,6 +100,11 @@ public class Client {
         }
     }
 
+    /**
+     * Requests setting a username. The server receives it, and checks if the username is taken or not.
+     * @param username the requested username
+     * @throws IOException in/out communication exception
+     */
     public void requestUsername(String username) throws IOException {
         out.reset();
         out.writeObject(Request.REQUEST_USERNAME);
@@ -79,17 +112,29 @@ public class Client {
         out.flush();
     }
 
+    /**
+     * Requests the creation of a new room.
+     * @throws IOException in/out communication exception
+     */
     public void requestRoomAdd() throws IOException {
         out.reset();
         out.writeObject(Request.CREATE_ROOM);
         out.flush();
     }
 
+    /**
+     * Updates the GUI after the client joins the room they themselves created.
+     */
     public void joinCreatedRoom() {
         primaryStage.setScene(waitingScene);
         waitingController.showInvitePane();
     }
 
+    /**
+     * Requests joining an existing room.
+     * @param roomId the ID of the room the client wants to join.
+     * @throws IOException in/out communication exception
+     */
     public void joinExistingRoom(int roomId) throws IOException {
         out.reset();
         out.writeObject(Request.JOIN_ROOM);
@@ -97,6 +142,10 @@ public class Client {
         out.flush();
     }
 
+    /**
+     * Starts the game; asks the server for cards and updates the GUI.
+     * @throws IOException in/out communication exception
+     */
     public void startGame() throws IOException {
         out.reset();
         out.writeObject(Request.DEAL_CARDS);
@@ -107,6 +156,12 @@ public class Client {
         primaryStage.setScene(gameScene);
     }
 
+    /**
+     * Asks the server to play a card, but only if it's this client's turn to do so.
+     * This method is called when a javaFX ImageView representing a card is clicked.
+     * @param cardIndex the index of the card the user wants to play (0 - 12).
+     * @throws IOException in/out communication exception
+     */
     public void playCard(int cardIndex) throws IOException {
         if (rooms.get(currentRoomId).getCurrentTurn() == this.clientId)
         {
@@ -119,6 +174,11 @@ public class Client {
         }
     }
 
+    /**
+     * Asks the server to invite a player. Only the host can invite players.
+     * @param username the username of the player the host wants to invite.
+     * @throws IOException IOException in/out communication exception
+     */
     public void requestPlayerInvite(String username) throws IOException {
         out.writeObject(Request.INVITE_PLAYER);
         out.writeObject(username);
@@ -127,11 +187,20 @@ public class Client {
         System.out.println("Invited: " + username);
     }
 
+    /**
+     * Notifies the server the user has exited the application.
+     * @throws IOException OException in/out communication exception
+     */
     public void exitGame() throws IOException {
         out.writeObject(Request.EXIT_GAME);
     }
 
-    // turn the individual if's into methods
+
+    /**
+     * Main method used to receive information from the server.
+     * Starts a new thread which handles various server messages,
+     * depending on the received Request object
+     */
     public void listen(){
         new Thread(() -> {
             while (clientSocket.isConnected())
@@ -180,6 +249,12 @@ public class Client {
         }).start();
     }
 
+    /**
+     * Handles setting the client's username. If the username is unique, and thus allowed,
+     * the client receives a HashMap containing currently open rooms, and updates the GUI.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleSetUsername() throws IOException, ClassNotFoundException {
         boolean usernameSet = (boolean) in.readObject();
 
@@ -200,6 +275,11 @@ public class Client {
         }
     }
 
+    /**
+     * Handles an update to the HashMap containing rooms. Updates the list of rooms in the GUI.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleRoomsUpdate() throws IOException, ClassNotFoundException {
         Room room = (Room) in.readObject();
         int roomId = room.getRoomId();
@@ -235,6 +315,11 @@ public class Client {
         rooms.put(roomId, room);//won't add a new one if the key's already there
     }
 
+    /**
+     * Handles a situation where a new room has been created by this client.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleRoomCreated() throws IOException, ClassNotFoundException {
         Room room = (Room) in.readObject();
 
@@ -244,6 +329,13 @@ public class Client {
         rooms.put(room.getRoomId(), room);
     }
 
+    /**
+     * Handles receiving an invitation from another client. Creates a popup window on the
+     * client's screen, asking them to accept the invite. Updates the GUI to show the main game scene,
+     * if the client accepted the invitation.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleInvitation() throws IOException, ClassNotFoundException {
         Invitation invitation = (Invitation) in.readObject();
         System.out.println("Received invitation");
@@ -272,11 +364,16 @@ public class Client {
         });
     }
 
+    /**
+     * Handles joining another player's room. Updates the GUI accordingly.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleJoinedRoom() throws IOException, ClassNotFoundException {
         Room room = (Room) in.readObject();
         currentRoomId = room.getRoomId();
 
-        rooms.put(room.getRoomId(), room); //won't add a new one if the key's already there
+        rooms.put(room.getRoomId(), room);
 
         Platform.runLater(() -> {
             primaryStage.setScene(waitingScene);
@@ -300,6 +397,12 @@ public class Client {
         });
     }
 
+    /**
+     * Handles receiving cards from the server at the start of every round.
+     * Updates the GUI accordingly.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleDealtCards() throws IOException, ClassNotFoundException {
         cardsInHand.clear();
 
@@ -319,6 +422,12 @@ public class Client {
         Platform.runLater(() -> gameController.generatePlayerCards());
     }
 
+    /**
+     * Handles a situation when this client was allowed to play a card they chose,
+     * using the playCard() method.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handlePlayedCard() throws IOException, ClassNotFoundException {
         Card playedCard = (Card) in.readObject();
         Room room = (Room) in.readObject();
@@ -334,6 +443,12 @@ public class Client {
         });
     }
 
+    /**
+     * Handles an update to the cards on the table. The client receives a card another client played,
+     * and updates the GUI accordingly.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleCardsUpdate() throws IOException, ClassNotFoundException {
         Card playedCard = (Card) in.readObject();
         Room room = (Room) in.readObject();
@@ -346,6 +461,12 @@ public class Client {
         });
     }
 
+    /**
+     * Handles the end of the turn, that is, all four players having played a card, and one of them
+     * having received points. Updates the GUI accordingly.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleTurnOver() throws IOException, ClassNotFoundException {
         int takerClientId = (int) in.readObject();
         int receivedPoints = (int) in.readObject();
@@ -360,6 +481,13 @@ public class Client {
         });
     }
 
+    /**
+     * Handles ending a round. This means all cards have been played,
+     * and it's time to move on to the next round. Asks the server to deal cards again.
+     * Updates the GUI  accordingly.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleRoundOver() throws IOException, ClassNotFoundException {
         Room room = (Room) in.readObject();
         rooms.put(room.getRoomId(), room);
@@ -373,6 +501,12 @@ public class Client {
         });
     }
 
+    /**
+     * Handles the game ending. The client receives the winner's name, and displays a popup with it inside.
+     * Also removes the room in which the game was taking place from this client's local HashMap of rooms.
+     * @throws IOException in/out communication exception
+     * @throws ClassNotFoundException if the class can't be identified after deserialization
+     */
     private void handleGameOver() throws IOException, ClassNotFoundException {
         String winnerName = (String) in.readObject();
         Room room = (Room) in.readObject();
@@ -387,7 +521,8 @@ public class Client {
     }
 
     /**
-     * Function to find the given card in the player's hand, after its fields have been changed by the server
+     * Function to find the given card in the player's hand, after its properties have been
+     * changed by the server.
      * @param updatedCard the card it looks for
      */
     public int findCard(Card updatedCard) {
@@ -401,11 +536,18 @@ public class Client {
         return index;
     }
 
+    /**
+     * Used to inform the server that the client has disconnected. The server then ends the game.
+     * @throws IOException in/out communication exception
+     */
     public void disconnectClient() throws IOException {
         out.writeObject(Request.DISCONNECT);
         out.writeObject(currentRoomId);
     }
 
+    /**
+     * Severs al client-server communication.
+     */
     public void closeEverything() {
         try {
             if (in != null)
@@ -437,13 +579,7 @@ public class Client {
     public Stage getPrimaryStage() {
         return this.primaryStage;
     }
-    public FXMLLoader getRoomsLoader() {
-        return roomsLoader;
-    }
     public Scene getRoomsScene() {
         return this.roomsScene;
-    }
-    public void setRoomsController(RoomsController roomsController) {
-        this.roomsController = roomsController;
     }
 }
