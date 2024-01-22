@@ -66,7 +66,7 @@ public class ClientHandler implements Runnable {
             closeEverything(socket, in, out);
         }
 
-        while (socket.isConnected()){
+        while (socket.isConnected() && !socket.isClosed()){
             try {
                 Request request = (Request) in.readObject();
 
